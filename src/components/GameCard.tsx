@@ -141,8 +141,8 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
     );
   };
 
-  // Everyone else's picks become visible at kickoff.
-  const others = locked ? picks.filter(p => p.pick_team_id) : [];
+  // Everyone's picks are public.
+  const others = picks.filter(p => p.pick_team_id);
   const whoFor = (teamId: string) =>
     others
       .filter(p => p.pick_team_id === teamId)

@@ -9,8 +9,8 @@ import { fmtSpread, isLocked } from '../lib/scoring';
 import type { Game, Pick, Player, Team } from '../lib/types';
 
 /**
- * Admin-only bulk entry: one person fills in everybody's picks (e.g. the group huddled in
- * Josh's office). Grid view for the whole week, or one game at a time for going around the room.
+ * Bulk entry: an admin fills in everybody's picks (e.g. the group huddled in Josh's office).
+ * Any logged-in player can watch and edit their own row. Grid view for the whole week, or one game at a time for going around the room.
  */
 export function PickPartyPage() {
   const { me, ready, weeks, games, picks, players, teams, savePick } = useLeague();
@@ -48,10 +48,17 @@ export function PickPartyPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [view, weekGames.length]);
 
-  if (ready && !me?.is_admin) return <Navigate to="/" replace />;
+  if (ready && !me) return <Navigate to="/login" replace />;
   if (!week) return <div className="card empty"><div className="big">🎉</div><p>No weeks to party on yet.</p></div>;
 
-  const editable = (g: Game) => override || !isLocked(g);
+  const editable = (g: Game) => (override && !!me?.is_admin) || !isLocked(g);
+  // Everyone can watch the party; admins can fill in anyone, players only themselves.
+  const canEditPlayer = (p: Player) => !!me && (me.is_admin || me.id === p.id);
+  const guard = (p: Player) => {
+    if (canEditPlayer(p)) return true;
+    toast(`Only ${p.name} (or an admin) can change ${p.name}'s picks`, true);
+    return false;
+  };
 
   const save = async (g: Game, pid: string, patch: Partial<Pick>) => {
     try {
@@ -64,6 +71,7 @@ export function PickPartyPage() {
   };
 
   const setTeam = (g: Game, p: Player, teamId: string) => {
+    if (!guard(p)) return;
     if (!editable(g)) return toast('Locked 🔒 (flip on "edit locked games" to fix it)', true);
     const cur = pickOf(g.id, p.id);
     // click the same team again to clear it
@@ -72,6 +80,7 @@ export function PickPartyPage() {
   };
 
   const toggleDD = async (g: Game, p: Player, el: HTMLElement) => {
+    if (!guard(p)) return;
     if (!editable(g)) return toast('Locked 🔒', true);
     const cur = pickOf(g.id, p.id);
     if (cur?.is_dd) return save(g, p.id, { is_dd: false });
@@ -86,6 +95,7 @@ export function PickPartyPage() {
   };
 
   const openScore = (g: Game, p: Player) => {
+    if (!guard(p)) return;
     if (!editable(g)) return toast('Locked 🔒', true);
     const cur = pickOf(g.id, p.id);
     const used = weekGames.filter(x => x.id !== g.id && pickOf(x.id, p.id)?.score_away != null).length;
@@ -167,9 +177,11 @@ export function PickPartyPage() {
         <div className="grow" />
         <button className={`btn small ${view === 'room' ? 'primary' : ''}`} onClick={() => setView('room')}>🎤 One game at a time</button>
         <button className={`btn small ${view === 'grid' ? 'primary' : ''}`} onClick={() => setView('grid')}>🧮 Whole grid</button>
-        <label className="row" style={{ fontWeight: 700, fontSize: 13 }}>
-          <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} /> 🔓 edit locked games
-        </label>
+        {me?.is_admin && (
+          <label className="row" style={{ fontWeight: 700, fontSize: 13 }}>
+            <input type="checkbox" checked={override} onChange={e => setOverride(e.target.checked)} /> 🔓 edit locked games
+          </label>
+        )}
       </div>
       {week.status === 'draft' && <p className="chip yellow">✏️ This week is still a draft. Open it in Admin when you're done.</p>}
       <div className="party-progress">
@@ -268,7 +280,7 @@ export function PickPartyPage() {
                     <div className="muted" style={{ fontSize: 11 }}>{home.abbr} {fmtSpread(Number(g.home_spread))} · {g.league === 'nfl' ? 'Pro' : 'College'}</div>
                   </td>
                   {players.map(p => (
-                    <td key={p.id}>
+                    <td key={p.id} style={!canEditPlayer(p) ? { opacity: 0.8 } : undefined}>
                       <div className="party-cell">
                         {teamPickBtn(g, p, away, false)}
                         {teamPickBtn(g, p, home, false)}

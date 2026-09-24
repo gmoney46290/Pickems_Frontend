@@ -100,8 +100,6 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         const g = payload.new as Game;
         setGames(gs => {
           const prev = gs.find(x => x.id === g.id);
-          // A game just kicked off: everyone's picks on it are now visible.
-          if (prev && prev.status === 'scheduled' && g.status !== 'scheduled') loadPicks();
           return prev ? gs.map(x => (x.id === g.id ? g : x)) : [...gs, g];
         });
       })
@@ -114,8 +112,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         setPicks(ps => (ps.some(x => x.id === p.id) ? ps.map(x => (x.id === p.id ? p : x)) : [...ps, p]));
       })
       .subscribe();
-    // Picks unhide at kickoff even if the score sync hasn't flipped status yet.
-    const t = setInterval(loadPicks, 90_000);
+    // Safety net in case a realtime message is missed.
+    const t = setInterval(loadPicks, 120_000);
     return () => {
       supabase.removeChannel(ch);
       clearInterval(t);

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
-import { atsResult, fmtSpread, isLocked, pickPoints, scoreCallHits } from '../lib/scoring';
+import { atsResult, fmtSpread, pickPoints, scoreCallHits } from '../lib/scoring';
 import type { Game, League } from '../lib/types';
 
 export function BoardPage() {
@@ -40,7 +40,6 @@ export function BoardPage() {
     const fav = Number(g.home_spread) <= 0 ? home : away;
     const res = atsResult(g);
     const coveredBy = res === 'home' ? home : res === 'away' ? away : null;
-    const locked = isLocked(g);
     const gp = players.map(pl => pickMap.get(`${g.id}:${pl.id}`));
     const nAway = gp.filter(p => p?.pick_team_id === away.id).length, nHome = gp.filter(p => p?.pick_team_id === home.id).length;
     return (
@@ -56,7 +55,7 @@ export function BoardPage() {
             {coveredBy && ` · ✅ ${coveredBy.abbr}`}
             {res === 'push' && ' · push'}
           </div>
-          {locked && nAway + nHome > 0 && (
+          {nAway + nHome > 0 && (
             <div className="split-bar" title={`${away.abbr} ${nAway} · ${home.abbr} ${nHome}`}>
               <div style={{ flex: nAway, background: away.color ?? '#888' }} />
               <div style={{ flex: nHome, background: home.color ?? '#ccc' }} />
@@ -65,8 +64,6 @@ export function BoardPage() {
         </td>
         {players.map((pl, i) => {
           const p = gp[i];
-          const mineOrVisible = locked || pl.id === me?.id;
-          if (!mineOrVisible) return <td key={pl.id}>🙈</td>;
           if (!p?.pick_team_id) return <td key={pl.id} className="muted">—</td>;
           const t = teams.get(p.pick_team_id);
           const r = pickPoints(g, p, true);
@@ -108,7 +105,6 @@ export function BoardPage() {
         <div className="sticker" style={{ background: 'var(--paper)', fontSize: 20 }}>📋 {weekTitle(week)} board</div>
         <span className="chip">🔥 = double down</span>
         <span className="chip">🎯 12-10 = score call (away-home)</span>
-        <span className="chip">🙈 = hidden till kickoff</span>
       </div>
       <div className="board-wrap">
         <table className="board">

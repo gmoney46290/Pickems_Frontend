@@ -26,7 +26,7 @@ export function RulesPage() {
       <h3>🔒 Locks & peeking</h3>
       <ul>
         <li>Each game locks at its own kickoff. Change your mind all you want before then.</li>
-        <li>Everyone's picks are hidden until kickoff, then fully public for roasting.</li>
+        <li>Everyone's picks are public the second they're made. Pick with your chest.</li>
         <li>Scores update live from ESPN. You'll see who's covering as it happens.</li>
       </ul>
 

@@ -29,7 +29,7 @@ export default function App() {
           <NavLink to="/board"><span className="ico">📋</span> <span className="lbl">Board</span></NavLink>
           <NavLink to="/standings"><span className="ico">🏆</span> <span className="lbl">Standings</span></NavLink>
           <NavLink to="/rules"><span className="ico">📜</span> <span className="lbl">Rules</span></NavLink>
-          {me?.is_admin && <NavLink to="/party"><span className="ico">🎉</span> <span className="lbl">Party</span></NavLink>}
+          {me && <NavLink to="/party"><span className="ico">🎉</span> <span className="lbl">Party</span></NavLink>}
           {me?.is_admin && <NavLink to="/admin"><span className="ico">🛠️</span> <span className="lbl">Admin</span></NavLink>}
         </nav>
         {me ? <MeChip /> : !session ? <Link className="btn primary" to="/login">Log in</Link> : <Link className="btn yellow" to="/login">Claim player</Link>}
