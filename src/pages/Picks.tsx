@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { Avatar } from '../components/Avatar';
 import { GameCard, type CardLimits } from '../components/GameCard';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
@@ -22,12 +23,22 @@ export function PicksPage() {
     if (weekId == null || !visibleWeeks.some(w => w.id === weekId)) setWeekId(defaultWeek(visibleWeeks, games));
   }, [visibleWeeks.length, games.length]); // eslint-disable-line
 
+  // Admins can pick on someone else's behalf (e.g. filling everyone in from Josh's office).
+  const actingId = me?.is_admin ? params.get('as') : null;
+  const actor = (actingId && players.find(p => p.id === actingId)) || me;
+  const setActing = (id: string) => {
+    const next = new URLSearchParams(params);
+    if (id === me?.id) next.delete('as');
+    else next.set('as', id);
+    setParams(next);
+  };
+
   const week = visibleWeeks.find(w => w.id === weekId);
   const weekGames = useMemo(
     () => games.filter(g => g.week_id === weekId).sort((a, b) => (a.league === b.league ? a.sort - b.sort || a.kickoff.localeCompare(b.kickoff) : a.league === 'cfb' ? -1 : 1)),
     [games, weekId],
   );
-  const myPicks = useMemo(() => new Map(picks.filter(p => p.player_id === me?.id).map(p => [p.game_id, p])), [picks, me]);
+  const myPicks = useMemo(() => new Map(picks.filter(p => p.player_id === actor?.id).map(p => [p.game_id, p])), [picks, actor]);
 
   if (!week) {
     return (
@@ -51,7 +62,7 @@ export function PicksPage() {
   const standings = buildStandings(players, games, picks, new Set([week.id]));
   const liveSorted = [...standings].sort((a, b) => b.live - a.live);
   const r = ranks(liveSorted.map(l => ({ ...l, total: l.live })));
-  const myRank = me ? r[liveSorted.findIndex(l => l.player.id === me.id)] : null;
+  const myRank = actor ? r[liveSorted.findIndex(l => l.player.id === actor.id)] : null;
   const anyStarted = weekGames.some(g => g.status !== 'scheduled');
 
   const limitsFor = (g: Game): CardLimits => {
@@ -65,7 +76,7 @@ export function PicksPage() {
 
   const moveDD = (g: Game) => async () => {
     const dd = ddFor(g.league);
-    if (dd && dd.id !== g.id) await savePick(dd.id, { is_dd: false });
+    if (dd && dd.id !== g.id) await savePick(dd.id, { is_dd: false }, actor?.id);
   };
 
   const unpicked = weekGames.filter(g => !myPicks.get(g.id)?.pick_team_id && !isLocked(g));
@@ -78,14 +89,31 @@ export function PicksPage() {
         value={weekId}
         onChange={id => {
           setWeekId(id);
-          setParams({ week: String(id) });
+          const next = new URLSearchParams(params);
+          next.set('week', String(id));
+          setParams(next);
         }}
       />
+
+      {me?.is_admin && week.status === 'open' && (
+        <div className="card panel row wrap" style={{ marginBottom: 12, padding: '10px 14px', background: actor?.id !== me.id ? 'var(--yellow)' : undefined }}>
+          <b className="display" style={{ fontSize: 14 }}>✍️ Picking for:</b>
+          {players.map(p => {
+            const n = weekGames.filter(g => picks.some(x => x.game_id === g.id && x.player_id === p.id && x.pick_team_id)).length;
+            return (
+              <button key={p.id} className={`btn small ${actor?.id === p.id ? 'primary' : ''}`} onClick={() => setActing(p.id)}>
+                <Avatar p={p} size="sm" /> {p.name} <span style={{ opacity: 0.7 }}>{n}/{weekGames.length}</span>
+              </button>
+            );
+          })}
+          <Link className="btn small dark" to={`/party?week=${week.id}`}>🎉 Pick Party grid</Link>
+        </div>
+      )}
 
       <div className="card hero">
         <div style={{ display: 'grid', gap: 10 }}>
           <div>
-            <h2>{weekTitle(week)}</h2>
+            <h2>{weekTitle(week)}{actor && actor.id !== me?.id ? ` · ${actor.emoji} ${actor.name}'s picks` : ''}</h2>
             <div className="sub">
               {week.status === 'draft' ? '✏️ Draft — only admins can see this' : week.status === 'final' ? '📦 In the books' : 'Picks lock at each kickoff. No take-backs.'}
             </div>
@@ -140,12 +168,12 @@ export function PicksPage() {
                     game={g}
                     away={away}
                     home={home}
-                    me={week.status === 'open' ? me : null}
+                    me={week.status === 'open' ? actor : null}
                     myPick={myPicks.get(g.id)}
                     picks={weekPicks.filter(p => p.game_id === g.id)}
                     players={players}
                     limits={limitsFor(g)}
-                    onSave={patch => savePick(g.id, patch)}
+                    onSave={patch => savePick(g.id, patch, actor?.id)}
                     onMoveDD={moveDD(g)}
                   />
                 );

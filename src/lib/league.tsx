@@ -16,8 +16,8 @@ interface LeagueState {
   games: Game[];
   picks: Pick[];
   reload: () => Promise<void>;
-  /** Upsert (or clear) my pick for a game. Throws with a friendly message on failure. */
-  savePick: (gameId: number, patch: Partial<Pick>) => Promise<void>;
+  /** Upsert (or clear) a pick. Defaults to me; admins may pass any player. Throws a friendly message on failure. */
+  savePick: (gameId: number, patch: Partial<Pick>, playerId?: string) => Promise<void>;
   upsertLocalGame: (g: Game) => void;
 }
 
@@ -126,28 +126,34 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const teams = useMemo(() => new Map(teamList.map(t => [t.id, t])), [teamList]);
 
   const savePick = useCallback(
-    async (gameId: number, patch: Partial<Pick>) => {
+    async (gameId: number, patch: Partial<Pick>, playerId?: string) => {
       if (!me) throw new Error('Log in and claim a player first');
-      const existing = picksRef.current.find(p => p.game_id === gameId && p.player_id === me.id);
+      const pid = playerId ?? me.id;
+      if (pid !== me.id && !me.is_admin) throw new Error('Only admins can pick for other people');
+      const tempId = -(gameId * 1000 + (pid.charCodeAt(0) + pid.charCodeAt(1)));
+      const existing = picksRef.current.find(p => p.game_id === gameId && p.player_id === pid);
       const next = {
         game_id: gameId,
-        player_id: me.id,
+        player_id: pid,
         pick_team_id: existing?.pick_team_id ?? null,
         is_dd: existing?.is_dd ?? false,
         score_away: existing?.score_away ?? null,
         score_home: existing?.score_home ?? null,
         ...patch,
       };
+      const same = (p: Pick) => p.game_id === gameId && p.player_id === pid;
       // optimistic
-      setPicks(ps =>
-        existing ? ps.map(p => (p.id === existing.id ? { ...p, ...next } : p)) : [...ps, { id: -gameId, ...next } as Pick],
-      );
+      setPicks(ps => (existing ? ps.map(p => (same(p) ? { ...p, ...next } : p)) : [...ps, { id: tempId, ...next } as Pick]));
+      picksRef.current = existing
+        ? picksRef.current.map(p => (same(p) ? { ...p, ...next } : p))
+        : [...picksRef.current, { id: tempId, ...next } as Pick];
       const { data, error } = await supabase.from('picks').upsert(next, { onConflict: 'game_id,player_id' }).select().single();
       if (error) {
-        setPicks(ps => (existing ? ps.map(p => (p.id === existing.id ? existing : p)) : ps.filter(p => p.id !== -gameId)));
+        setPicks(ps => (existing ? ps.map(p => (same(p) ? existing : p)) : ps.filter(p => !same(p))));
+        picksRef.current = existing ? picksRef.current.map(p => (same(p) ? existing : p)) : picksRef.current.filter(p => !same(p));
         throw new Error(friendly(error.message));
       }
-      setPicks(ps => ps.map(p => (p.game_id === gameId && p.player_id === me.id ? (data as Pick) : p)));
+      setPicks(ps => ps.map(p => (same(p) ? (data as Pick) : p)));
     },
     [me],
   );
