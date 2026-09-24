@@ -33,6 +33,7 @@ export interface Week {
   status: 'draft' | 'open' | 'final';
   score_picks: number;
   dd_per_league: number;
+  locks_at: string | null;
 }
 
 export interface Phase {

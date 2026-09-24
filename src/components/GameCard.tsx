@@ -22,6 +22,7 @@ interface Props {
   limits: CardLimits;
   onSave: (patch: Partial<Pick>) => Promise<void>;
   onMoveDD: () => Promise<void>;
+  weekLocksAt?: string | null;
 }
 
 function inkFor(hex: string | null) {
@@ -36,7 +37,7 @@ function kickoffLabel(iso: string) {
   return d.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' });
 }
 
-export function GameCard({ game, away, home, me, myPick, picks, players, limits, onSave, onMoveDD }: Props) {
+export function GameCard({ game, away, home, me, myPick, picks, players, limits, onSave, onMoveDD, weekLocksAt }: Props) {
   const toast = useToast();
   const [showLines, setShowLines] = useState(false);
   const [editingScore, setEditingScore] = useState(false);
@@ -50,7 +51,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
     return () => clearInterval(t);
   }, []);
 
-  const locked = isLocked(game, now);
+  const locked = isLocked(game, now, { locks_at: weekLocksAt ?? null });
   const picked = pickedSide(game, myPick);
   const live = game.status === 'in';
   const final = game.status === 'final';

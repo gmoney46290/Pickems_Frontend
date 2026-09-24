@@ -4,7 +4,7 @@ import { useToast } from '../components/Toast';
 import { weekTitle } from '../components/WeekTabs';
 import { currentWeeks, fetchSlate, teamRow, type EspnGame } from '../lib/espn';
 import { useLeague } from '../lib/league';
-import { fmtSpread } from '../lib/scoring';
+import { fmtSpread, weekLocked } from '../lib/scoring';
 import { supabase } from '../lib/supabase';
 import type { Game, League, Week } from '../lib/types';
 
@@ -65,6 +65,18 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
     toast(status === 'open' ? `${weekTitle(w)} is open for picks! 📣` : `${weekTitle(w)} → ${status}`);
     reload();
   };
+  const setLock = async (w: Week, locks_at: string | null) => {
+    const { error } = await supabase.from('weeks').update({ locks_at }).eq('id', w.id);
+    if (error) return toast(error.message, true);
+    toast(!locks_at ? `${weekTitle(w)} unlocked 🔓` : new Date(locks_at).getTime() <= Date.now() ? `${weekTitle(w)} picks locked 🔒` : `${weekTitle(w)} locks ${new Date(locks_at).toLocaleString()}`);
+    reload();
+  };
+  // datetime-local wants local time without zone
+  const toLocalInput = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+  };
   const del = async (w: Week) => {
     const n = picks.filter(p => games.some(g => g.id === p.game_id && g.week_id === w.id)).length;
     if (!confirm(`Delete ${weekTitle(w)}${n ? ` and its ${n} picks` : ''}? No undo.`)) return;
@@ -85,6 +97,7 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
             <th className="hide-sm">NFL / CFB wk</th>
             <th>Games</th>
             <th>Status</th>
+            <th>Picks lock</th>
             <th />
           </tr>
         </thead>
@@ -102,6 +115,25 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
                     <option value="open">📣 open</option>
                     <option value="final">📦 final</option>
                   </select>
+                </td>
+                <td>
+                  {weekLocked(w) ? (
+                    <span className="row">
+                      <span className="chip dark">🔒 locked</span>
+                      <button className="btn small" onClick={() => setLock(w, null)}>Unlock</button>
+                    </span>
+                  ) : (
+                    <span className="row wrap">
+                      <button className="btn small dark" onClick={() => setLock(w, new Date().toISOString())}>🔒 Lock now</button>
+                      <input
+                        className="input"
+                        type="datetime-local"
+                        title="Schedule a lock time"
+                        value={toLocalInput(w.locks_at)}
+                        onChange={e => setLock(w, e.target.value ? new Date(e.target.value).toISOString() : null)}
+                      />
+                    </span>
+                  )}
                 </td>
                 <td className="row" style={{ justifyContent: 'flex-end' }}>
                   <button className="btn small" onClick={() => onEdit(w.id)}>Edit</button>

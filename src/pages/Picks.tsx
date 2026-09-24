@@ -4,7 +4,7 @@ import { Avatar } from '../components/Avatar';
 import { GameCard, type CardLimits } from '../components/GameCard';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
-import { isLocked, pickPoints } from '../lib/scoring';
+import { isLocked, pickPoints, weekLocked } from '../lib/scoring';
 import { buildStandings, ordinal, ranks } from '../lib/standings';
 import type { Game, League } from '../lib/types';
 
@@ -69,7 +69,7 @@ export function PicksPage() {
     const dd = ddFor(g.league);
     return {
       ddUsed: !!dd && dd.id !== g.id,
-      ddLockedElsewhere: !!dd && dd.id !== g.id && isLocked(dd),
+      ddLockedElsewhere: !!dd && dd.id !== g.id && isLocked(dd, Date.now(), week),
       scoreCallsLeft: week.score_picks - scoreCalls,
     };
   };
@@ -79,7 +79,8 @@ export function PicksPage() {
     if (dd && dd.id !== g.id) await savePick(dd.id, { is_dd: false }, actor?.id);
   };
 
-  const unpicked = weekGames.filter(g => !myPicks.get(g.id)?.pick_team_id && !isLocked(g));
+  const unpicked = weekGames.filter(g => !myPicks.get(g.id)?.pick_team_id && !isLocked(g, Date.now(), week));
+  const allLocked = weekLocked(week);
 
   return (
     <>
@@ -95,7 +96,7 @@ export function PicksPage() {
         }}
       />
 
-      {me?.is_admin && week.status === 'open' && (
+      {me?.is_admin && week.status === 'open' && !allLocked && (
         <div className="card panel row wrap" style={{ marginBottom: 12, padding: '10px 14px', background: actor?.id !== me.id ? 'var(--yellow)' : undefined }}>
           <b className="display" style={{ fontSize: 14 }}>✍️ Picking for:</b>
           {players.map(p => {
@@ -115,7 +116,15 @@ export function PicksPage() {
           <div>
             <h2>{weekTitle(week)}{actor && actor.id !== me?.id ? ` · ${actor.emoji} ${actor.name}'s picks` : ''}</h2>
             <div className="sub">
-              {week.status === 'draft' ? '✏️ Draft — only admins can see this' : week.status === 'final' ? '📦 In the books' : 'Picks lock at each kickoff. No take-backs.'}
+              {week.status === 'draft'
+                ? '✏️ Draft — only admins can see this'
+                : week.status === 'final'
+                  ? '📦 In the books'
+                  : allLocked
+                    ? '🔒 Picks are locked for the week. Pray.'
+                    : week.locks_at
+                      ? `⏰ All picks lock ${new Date(week.locks_at).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })} (or at kickoff, whichever's first)`
+                      : 'Picks lock at each kickoff. No take-backs.'}
             </div>
           </div>
           {me ? (
@@ -175,6 +184,7 @@ export function PicksPage() {
                     limits={limitsFor(g)}
                     onSave={patch => savePick(g.id, patch, actor?.id)}
                     onMoveDD={moveDD(g)}
+                    weekLocksAt={week.locks_at}
                   />
                 );
               })}

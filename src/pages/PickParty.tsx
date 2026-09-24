@@ -5,7 +5,7 @@ import { useToast } from '../components/Toast';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { fireDD, fireScore } from '../components/fun';
 import { useLeague } from '../lib/league';
-import { fmtSpread, isLocked } from '../lib/scoring';
+import { fmtSpread, isLocked, weekLocked } from '../lib/scoring';
 import type { Game, Pick, Player, Team } from '../lib/types';
 
 /**
@@ -51,7 +51,7 @@ export function PickPartyPage() {
   if (ready && !me) return <Navigate to="/login" replace />;
   if (!week) return <div className="card empty"><div className="big">🎉</div><p>No weeks to party on yet.</p></div>;
 
-  const editable = (g: Game) => (override && !!me?.is_admin) || !isLocked(g);
+  const editable = (g: Game) => (override && !!me?.is_admin) || !isLocked(g, Date.now(), week);
   // Everyone can watch the party; admins can fill in anyone, players only themselves.
   const canEditPlayer = (p: Player) => !!me && (me.is_admin || me.id === p.id);
   const guard = (p: Player) => {
@@ -184,6 +184,7 @@ export function PickPartyPage() {
         )}
       </div>
       {week.status === 'draft' && <p className="chip yellow">✏️ This week is still a draft. Open it in Admin when you're done.</p>}
+      {weekLocked(week) && <p className="chip dark">🔒 Picks are locked for this week{me?.is_admin ? ' — tick "edit locked games" to fix something' : ''}.</p>}
       <div className="party-progress">
         {players.map(p => {
           const pr = progress(p);
@@ -207,7 +208,7 @@ export function PickPartyPage() {
     const away = teams.get(game.away_team_id)!, home = teams.get(game.home_team_id)!;
     const nAway = players.filter(p => pickOf(game.id, p.id)?.pick_team_id === away.id).length;
     const nHome = players.filter(p => pickOf(game.id, p.id)?.pick_team_id === home.id).length;
-    const locked = isLocked(game);
+    const locked = isLocked(game, Date.now(), week);
     return (
       <>
         {header}
@@ -276,7 +277,7 @@ export function PickPartyPage() {
               return (
                 <tr key={g.id} style={!editable(g) ? { opacity: 0.55 } : undefined}>
                   <td className="game-col">
-                    <div style={{ fontWeight: 700 }}>{away.abbr} @ {home.abbr}{isLocked(g) && ' 🔒'}</div>
+                    <div style={{ fontWeight: 700 }}>{away.abbr} @ {home.abbr}{isLocked(g, Date.now(), week) && ' 🔒'}</div>
                     <div className="muted" style={{ fontSize: 11 }}>{home.abbr} {fmtSpread(Number(g.home_spread))} · {g.league === 'nfl' ? 'Pro' : 'College'}</div>
                   </td>
                   {players.map(p => (

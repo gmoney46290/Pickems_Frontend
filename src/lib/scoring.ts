@@ -54,8 +54,13 @@ export function pickPoints(g: Game, p: Pick | undefined, live = false): PickPoin
   return { ats, score, total: ats + score, outcome, bullseye };
 }
 
-export function isLocked(g: Game, now = Date.now()) {
-  return new Date(g.kickoff).getTime() <= now || g.status !== 'scheduled';
+export function weekLocked(w: { locks_at: string | null } | undefined | null, now = Date.now()) {
+  return !!w?.locks_at && new Date(w.locks_at).getTime() <= now;
+}
+
+/** A game is locked at its kickoff, or when the commish locks the whole week. */
+export function isLocked(g: Game, now = Date.now(), week?: { locks_at: string | null } | null) {
+  return new Date(g.kickoff).getTime() <= now || g.status !== 'scheduled' || weekLocked(week, now);
 }
 
 export function fmtSpread(n: number) {
