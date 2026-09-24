@@ -136,7 +136,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         </span>
         {hasScore ? <span className="team-score">{score}</span> : null}
         <span className="team-spread">{fmtSpread(spread)}</span>
-        {live && covering === side && <span className="covering-tag">covering</span>}
+        {(live || final) && covering === side && <span className="covering-tag">{final ? 'covered ✓' : 'covering'}</span>}
       </button>
     );
   };
@@ -164,8 +164,8 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         {status}
         <span className="row" style={{ gap: 4 }}>
           {tweaked && (
-            <span className="chip yellow" title={`Vegas: ${home.abbr} ${fmtSpread(Number(game.market_spread))}`}>
-              🌶️ house line
+            <span className="chip yellow" title="Our line differs from DraftKings">
+              🌶️ Vegas {Number(game.market_spread) <= 0 ? home.abbr : away.abbr} {fmtSpread(-Math.abs(Number(game.market_spread)))}
             </span>
           )}
           {game.neutral && <span className="chip ghost">neutral</span>}
@@ -208,10 +208,12 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
       ) : null}
 
       <div className="game-actions">
-        <button className={`btn small ${myPick?.is_dd ? 'on' : ''}`} disabled={!canEdit} onClick={toggleDD} title="+2 if right, -1 if wrong">
-          🔥 {myPick?.is_dd ? 'Doubled!' : 'Double down'}
-        </button>
-        {!myCall && (
+        {(canEdit || myPick?.is_dd) && (
+          <button className={`btn small ${myPick?.is_dd ? 'on' : ''}`} disabled={!canEdit} onClick={toggleDD} title="+2 if right, -1 if wrong">
+            🔥 {myPick?.is_dd ? 'Doubled!' : 'Double down'}
+          </button>
+        )}
+        {canEdit && !myCall && (
           <button className="btn small" disabled={!canEdit || limits.scoreCallsLeft <= 0} onClick={openScore} title="Within 2 points on both teams = +3">
             🎯 Call score
           </button>
