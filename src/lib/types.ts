@@ -56,6 +56,10 @@ export interface Game {
   home_spread: number;
   market_spread: number | null;
   market_total: number | null;
+  away_rank: number | null;
+  home_rank: number | null;
+  away_record: string | null;
+  home_record: string | null;
   away_score: number | null;
   home_score: number | null;
   status: 'scheduled' | 'in' | 'final' | 'canceled';

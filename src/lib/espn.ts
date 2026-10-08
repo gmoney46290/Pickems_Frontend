@@ -19,8 +19,8 @@ export interface EspnGame {
   name: string;
   kickoff: string;
   neutral: boolean;
-  away: EspnTeam & { rank?: number };
-  home: EspnTeam & { rank?: number };
+  away: EspnTeam & { rank?: number; record?: string };
+  home: EspnTeam & { rank?: number; record?: string };
   /** DraftKings spread from the home team's view, if posted */
   homeSpread: number | null;
   spreadDetails: string | null;
@@ -40,7 +40,8 @@ function parseEvent(e: any, league: League): EspnGame {
   const side = (ha: string) => {
     const t = c.competitors.find((x: any) => x.homeAway === ha);
     const rank = t.curatedRank?.current;
-    return { ...t.team, rank: rank && rank < 99 ? rank : undefined };
+    const record = t.records?.find((r: any) => r.type === 'total' || r.name === 'overall')?.summary;
+    return { ...t.team, rank: rank && rank < 99 ? rank : undefined, record };
   };
   const home = side('home'), away = side('away');
   const o = c.odds?.[0];
@@ -128,4 +129,48 @@ export async function fetchEspnLines(league: League, eventId: string): Promise<B
       logo: p.provider?.logos?.find((l: any) => l.rel?.includes('light'))?.href,
     };
   });
+}
+
+export interface RecentGame {
+  date: string;
+  opp: string;
+  oppLogo?: string;
+  home: boolean;
+  us: number;
+  them: number;
+  result: 'W' | 'L' | 'T';
+}
+
+const recentCache = new Map<string, Promise<RecentGame[]>>();
+
+/** A team's completed games before `before` (most recent first). */
+export function fetchRecent(league: League, espnId: string, season: number, before: string): Promise<RecentGame[]> {
+  const key = `${league}-${espnId}-${season}-${before}`;
+  if (!recentCache.has(key)) {
+    recentCache.set(
+      key,
+      getJson(`${BASE}/${path(league)}/teams/${espnId}/schedule?season=${season}`)
+        .then(d =>
+          (d.events ?? [])
+            .filter((e: any) => e.competitions?.[0]?.status?.type?.completed && e.date < before)
+            .map((e: any): RecentGame => {
+              const c = e.competitions[0].competitors;
+              const us = c.find((t: any) => t.team.id === espnId), them = c.find((t: any) => t.team.id !== espnId);
+              const a = Number(us?.score?.value ?? us?.score?.displayValue ?? 0), b = Number(them?.score?.value ?? them?.score?.displayValue ?? 0);
+              return {
+                date: e.date,
+                opp: them?.team?.abbreviation ?? '?',
+                oppLogo: them?.team?.logos?.[0]?.href ?? them?.team?.logo,
+                home: us?.homeAway === 'home',
+                us: a,
+                them: b,
+                result: a > b ? 'W' : a < b ? 'L' : 'T',
+              };
+            })
+            .reverse(),
+        )
+        .catch(() => []),
+    );
+  }
+  return recentCache.get(key)!;
 }

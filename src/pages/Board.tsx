@@ -46,7 +46,7 @@ export function BoardPage() {
       <tr key={g.id}>
         <td className="game-col">
           <div style={{ fontWeight: 700 }}>
-            {away.abbr} @ {home.abbr}
+            {g.away_rank ? <span className="team-rank">#{g.away_rank}</span> : null}{away.abbr} @ {g.home_rank ? <span className="team-rank">#{g.home_rank}</span> : null}{home.abbr}
           </div>
           <div className="muted" style={{ fontSize: 11 }}>
             {fav.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}

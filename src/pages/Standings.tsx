@@ -2,9 +2,9 @@ import { useMemo, useState } from 'react';
 import { Avatar } from '../components/Avatar';
 import { weekTitle } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
-import { pickedSide, pickPoints } from '../lib/scoring';
-import { buildStandings, ordinal, ranks, type Line } from '../lib/standings';
-import type { Player } from '../lib/types';
+import { computeAwards, groupL } from '../lib/awards';
+import { fmtSpread } from '../lib/scoring';
+import { buildStandings, ordinal, ranks } from '../lib/standings';
 
 function Spark({ values, color }: { values: number[]; color: string }) {
   if (values.length < 2) return null;
@@ -21,7 +21,7 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export function StandingsPage() {
-  const { players, games, picks, weeks, phases, phaseWeeks } = useLeague();
+  const { players, games, picks, weeks, phases, phaseWeeks, teams } = useLeague();
   const [scope, setScope] = useState<'season' | number>('season');
 
   const scopedWeeks = useMemo(() => {
@@ -35,7 +35,12 @@ export function StandingsPage() {
   const r = ranks(lines);
   const playedWeeks = scopedWeeks.filter(w => games.some(g => g.week_id === w.id && g.status === 'final'));
 
-  const supers = useMemo(() => superlatives(lines, players, games, picks, weekIds), [lines, players, games, picks, weekIds]);
+  // Awards: one week at a time (defaults to the latest week with results) or the whole scope.
+  const [awardWeek, setAwardWeek] = useState<number | 'all' | null>(null);
+  const awardScope = awardWeek === 'all' ? 'all' : playedWeeks.some(w => w.id === awardWeek) ? awardWeek : playedWeeks.at(-1)?.id ?? 'all';
+  const awardIds = useMemo(() => (awardScope === 'all' ? weekIds : new Set([awardScope as number])), [awardScope, weekIds]);
+  const awards = useMemo(() => computeAwards(players, games, picks, awardIds, awardScope !== 'all'), [players, games, picks, awardIds, awardScope]);
+  const burned = useMemo(() => groupL(games, picks, awardIds), [games, picks, awardIds]);
 
   if (!players.length) return <div className="card empty"><div className="big">🏆</div><p>No players yet.</p></div>;
 
@@ -84,19 +89,42 @@ export function StandingsPage() {
         })}
       </div>
 
-      {supers.length > 0 && (
+      {playedWeeks.length > 0 && (
         <>
-          <div className="section-title">🏅 Superlatives</div>
+          <div className="section-title">🏅 Awards</div>
+          <div className="phase-tabs">
+            {playedWeeks.map(w => (
+              <button key={w.id} className={`btn small ${awardScope === w.id ? 'primary' : ''}`} onClick={() => setAwardWeek(w.id)}>
+                {weekTitle(w)}
+              </button>
+            ))}
+            <button className={`btn small ${awardScope === 'all' ? 'primary' : ''}`} onClick={() => setAwardWeek('all')}>
+              🏆 {scope === 'season' ? 'Season' : phases.find(p => p.id === scope)?.name ?? 'Phase'}
+            </button>
+          </div>
+          {burned && (() => {
+            const a = teams.get(burned.g.away_team_id), h = teams.get(burned.g.home_team_id);
+            return (
+              <div className="card panel" style={{ marginBottom: 12, background: 'var(--loss-bg)' }}>
+                <b className="display">🫠 Group L:</b> {a?.abbr} {burned.g.away_score} @ {h?.abbr} {burned.g.home_score} ({h?.abbr} {fmtSpread(Number(burned.g.home_spread))}) burned {burned.wrong} of {burned.total} of us.
+              </div>
+            );
+          })()}
           <div className="supers">
-            {supers.map(s => (
+            {awards.map(s => (
               <div key={s.title} className="card super">
                 <div className="t">{s.title}</div>
-                <div className="who-big">
-                  <Avatar p={s.player} size="sm" /> {s.player.name}
+                <div className="who-big wrap">
+                  {s.players.map(p => (
+                    <span key={p.id} className="row" style={{ gap: 6 }}>
+                      <Avatar p={p} size="sm" /> {p.name}
+                    </span>
+                  ))}
                 </div>
                 <div className="why">{s.why}</div>
               </div>
             ))}
+            {!awards.length && <div className="muted">No awards yet. Go lose some money.</div>}
           </div>
         </>
       )}
@@ -134,51 +162,4 @@ export function StandingsPage() {
       )}
     </>
   );
-}
-
-interface Super { title: string; player: Player; why: string }
-
-function superlatives(lines: Line[], players: Player[], games: ReturnType<typeof useLeague>['games'], picks: ReturnType<typeof useLeague>['picks'], weekIds: Set<number>): Super[] {
-  const out: Super[] = [];
-  const final = games.filter(g => g.status === 'final' && weekIds.has(g.week_id));
-  if (!final.length) return out;
-  const top = <T,>(arr: T[], f: (x: T) => number) => arr.reduce((a, b) => (f(b) > f(a) ? b : a));
-
-  // Best single week
-  let bestWeek = { pl: lines[0].player, pts: -99, week: 0 };
-  for (const l of lines) for (const [w, v] of l.byWeek) if (v > bestWeek.pts) bestWeek = { pl: l.player, pts: v, week: w };
-  out.push({ title: '🚀 Heater', player: bestWeek.pl, why: `${bestWeek.pts} points in one week. Somebody call Vegas.` });
-
-  const sniper = top(lines, l => l.bullseyes);
-  if (sniper.bullseyes > 0) out.push({ title: '🎯 Sniper', player: sniper.player, why: `${sniper.bullseyes} bullseye score calls` });
-
-  const dd = top(lines, l => l.ddWins * 2 - l.ddLosses);
-  out.push({ title: '🔥 Double Trouble', player: dd.player, why: `${dd.ddWins}-${dd.ddLosses} on double downs (${dd.ddWins * 2 - dd.ddLosses >= 0 ? '+' : ''}${dd.ddWins * 2 - dd.ddLosses} net)` });
-
-  const worstDD = top(lines, l => l.ddLosses - l.ddWins);
-  if (worstDD.ddLosses > worstDD.ddWins) out.push({ title: '🧯 Needs a Fire Extinguisher', player: worstDD.player, why: `${worstDD.ddLosses} busted double downs` });
-
-  // Contrarian: most correct lone-wolf picks
-  const byGame = new Map<number, typeof picks>();
-  for (const p of picks) if (p.pick_team_id) byGame.set(p.game_id, [...(byGame.get(p.game_id) ?? []), p]);
-  const lone = new Map<string, number>(), chalk = new Map<string, number>();
-  for (const g of final) {
-    const ps = byGame.get(g.id) ?? [];
-    for (const p of ps) {
-      const same = ps.filter(x => x.pick_team_id === p.pick_team_id).length;
-      if (same === 1 && ps.length > 2 && pickPoints(g, p).outcome === 'win') lone.set(p.player_id, (lone.get(p.player_id) ?? 0) + 1);
-      const favSide = Number(g.home_spread) < 0 ? 'home' : 'away';
-      if (pickedSide(g, p) === favSide) chalk.set(p.player_id, (chalk.get(p.player_id) ?? 0) + 1);
-    }
-  }
-  const pl = (id: string) => players.find(p => p.id === id)!;
-  if (lone.size) {
-    const [id, n] = [...lone].reduce((a, b) => (b[1] > a[1] ? b : a));
-    out.push({ title: '🐺 Lone Wolf', player: pl(id), why: `${n} winning picks nobody else made` });
-  }
-  if (chalk.size) {
-    const [id, n] = [...chalk].reduce((a, b) => (b[1] > a[1] ? b : a));
-    out.push({ title: '🖍️ Chalk Muncher', player: pl(id), why: `Took the favorite ${n} times. Brave.` });
-  }
-  return out;
 }

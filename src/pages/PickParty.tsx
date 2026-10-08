@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
+import { TeamForm } from '../components/TeamForm';
+import { VegasChip } from '../components/VegasChip';
 import { useToast } from '../components/Toast';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { fireDD, fireScore } from '../components/fun';
@@ -226,11 +228,27 @@ export function PickPartyPage() {
           <div className="room-head">
             <button className="btn" disabled={idx === 0} onClick={() => setIdx(i => i - 1)}>← Prev</button>
             <div className="room-matchup">
-              <div className="room-team">{away.logo && <img src={away.logo} alt="" />}<b>{away.short_name}</b><span className="team-spread">{fmtSpread(-Number(game.home_spread))}</span></div>
-              <div className="display muted">@</div>
-              <div className="room-team">{home.logo && <img src={home.logo} alt="" />}<b>{home.short_name}</b><span className="team-spread">{fmtSpread(Number(game.home_spread))}</span></div>
+              {[away, home].map((t, i) => {
+                const isHome = i === 1;
+                const rank = isHome ? game.home_rank : game.away_rank;
+                const record = isHome ? game.home_record : game.away_record;
+                return (
+                  <div key={t.id} className="room-team" style={{ order: isHome ? 2 : 0 }}>
+                    {t.logo && <img src={t.logo} alt="" />}
+                    <b>{rank ? <span className="team-rank">#{rank}</span> : null}{t.short_name}</b>
+                    {record && <span className="team-record">{record}</span>}
+                    <span className="room-spread">{fmtSpread(isHome ? Number(game.home_spread) : -Number(game.home_spread))}</span>
+                  </div>
+                );
+              })}
+              <div className="display muted" style={{ order: 1 }}>@</div>
             </div>
             <button className="btn" disabled={idx >= weekGames.length - 1} onClick={() => setIdx(i => i + 1)}>Next →</button>
+          </div>
+          <div className="center"><VegasChip game={game} away={away} home={home} /></div>
+          <div className="room-form">
+            <TeamForm team={away} game={game} season={week.season} />
+            <TeamForm team={home} game={game} season={week.season} />
           </div>
           <div className="center muted" style={{ fontWeight: 700 }}>
             {game.league === 'nfl' ? '🏟️ Pro' : '🎓 College'} · game {idx + 1} of {weekGames.length} · {new Date(game.kickoff).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}{locked ? ' · 🔒 locked' : ''}
@@ -277,8 +295,13 @@ export function PickPartyPage() {
               return (
                 <tr key={g.id} style={!editable(g) ? { opacity: 0.55 } : undefined}>
                   <td className="game-col">
-                    <div style={{ fontWeight: 700 }}>{away.abbr} @ {home.abbr}{isLocked(g, Date.now(), week) && ' 🔒'}</div>
-                    <div className="muted" style={{ fontSize: 11 }}>{home.abbr} {fmtSpread(Number(g.home_spread))} · {g.league === 'nfl' ? 'Pro' : 'College'}</div>
+                    <div style={{ fontWeight: 700 }}>
+                      {g.away_rank ? <span className="team-rank">#{g.away_rank}</span> : null}{away.abbr} @ {g.home_rank ? <span className="team-rank">#{g.home_rank}</span> : null}{home.abbr}
+                      {isLocked(g, Date.now(), week) && ' 🔒'}
+                    </div>
+                    <div className="grid-line">{Number(g.home_spread) <= 0 ? home.abbr : away.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}</div>
+                    {(g.away_record || g.home_record) && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
+                    <VegasChip game={g} away={away} home={home} />
                   </td>
                   {players.map(p => (
                     <td key={p.id} style={!canEditPlayer(p) ? { opacity: 0.8 } : undefined}>

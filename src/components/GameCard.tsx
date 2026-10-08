@@ -117,7 +117,8 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
     const t = side === 'away' ? away : home;
     const spread = side === 'home' ? Number(game.home_spread) : -Number(game.home_spread);
     const score = side === 'away' ? game.away_score : game.home_score;
-    const rank = (t as any).rank;
+    const rank = side === 'away' ? game.away_rank : game.home_rank;
+    const record = side === 'away' ? game.away_record : game.home_record;
     const isPicked = picked === side;
     return (
       <button
@@ -135,6 +136,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
           {rank ? <span className="team-rank">#{rank}</span> : null}
           {t.short_name}
         </span>
+        {record && <span className="team-record">{record}</span>}
         {hasScore ? <span className="team-score">{score}</span> : null}
         <span className="team-spread">{fmtSpread(spread)}</span>
         {(live || final) && covering === side && <span className="covering-tag">{final ? 'covered ✓' : 'covering'}</span>}

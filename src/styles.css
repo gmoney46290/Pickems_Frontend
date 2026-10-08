@@ -255,7 +255,8 @@ label.field { display: grid; gap: 4px; font-weight: 700; font-size: 13px; }
 .team-logo { width: 52px; height: 52px; object-fit: contain; filter: drop-shadow(1px 2px 0 rgba(0,0,0,.15)); }
 .team-logo-wrap { background: white; border-radius: 50%; padding: 4px; }
 .team-name { font-family: var(--display); font-size: 14px; line-height: 1.05; text-align: center; }
-.team-rank { font-size: 11px; font-weight: 700; opacity: 0.75; margin-right: 3px; }
+.team-rank { font-family: var(--body); font-size: 12px; font-weight: 700; background: var(--ink); color: var(--yellow); border-radius: 5px; padding: 0 4px; margin-right: 4px; vertical-align: 2px; }
+.team-record { font-size: 11px; font-weight: 700; opacity: 0.7; }
 .team-spread { font-weight: 700; font-size: 13px; background: var(--ink); color: white; border-radius: 6px; padding: 1px 7px; }
 .team-score { font-family: var(--display); font-size: 30px; line-height: 1; }
 .covering-tag { font-size: 10px; font-weight: 700; text-transform: uppercase; background: var(--win); color: white; border-radius: 6px; padding: 1px 6px; }
@@ -443,3 +444,16 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
   .room-team img { width: 48px; height: 48px; }
   .room-team { font-size: 14px; }
 }
+
+.room-spread { font-family: var(--display); font-size: 22px; background: var(--ink); color: white; border-radius: 10px; padding: 2px 12px; }
+.grid-line { font-family: var(--display); font-size: 15px; margin: 2px 0; }
+.room-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 6px 0; }
+@media (max-width: 640px) { .room-form { grid-template-columns: 1fr; } .room-spread { font-size: 17px; } }
+.form-card { border: 2px solid var(--ink); border-radius: 12px; background: var(--paper-2); padding: 8px 10px; display: grid; gap: 4px; }
+.form-head { display: flex; align-items: center; gap: 6px; }
+.form-head img { width: 22px; height: 22px; object-fit: contain; }
+.form-row { display: flex; align-items: center; gap: 6px; font-size: 13px; }
+.form-row img { width: 18px; height: 18px; object-fit: contain; }
+.form-res { font-family: var(--display); font-size: 11px; width: 20px; height: 20px; display: grid; place-content: center; border-radius: 6px; color: white; background: var(--push); }
+.form-res.W { background: var(--win); }
+.form-res.L { background: var(--loss); }

@@ -38,6 +38,10 @@ interface Row {
   situation: string | null;
   market_spread: number | null;
   market_total: number | null;
+  away_rank: number | null;
+  home_rank: number | null;
+  away_record: string | null;
+  home_record: string | null;
   weeks: { season: number; nfl_week: number | null; cfb_week: number | null; status: string };
 }
 
@@ -55,6 +59,9 @@ function parse(e: any, league: League) {
     market = homeFav ? -Math.abs(o.spread) : Math.abs(o.spread);
   }
   const sit = c.situation;
+  const rank = (t: any) => { const r = t.curatedRank?.current; return r && r < 99 ? r : null; };
+  const rec = (t: any) => t.records?.find((r: any) => r.type === 'total' || r.name === 'overall')?.summary ?? null;
+  const pre = status === 'scheduled';
   return {
     kickoff: c.date ?? e.date,
     status,
@@ -65,6 +72,11 @@ function parse(e: any, league: League) {
     situation: status === 'in' ? sit?.downDistanceText ?? sit?.shortDownDistanceText ?? null : null,
     market_spread: status === 'scheduled' ? market : undefined,
     market_total: status === 'scheduled' ? (o?.overUnder ?? null) : undefined,
+    // ranks/records are "going into the game": refresh until kickoff, then freeze
+    away_rank: pre ? rank(away) : undefined,
+    home_rank: pre ? rank(home) : undefined,
+    away_record: pre ? rec(away) : undefined,
+    home_record: pre ? rec(home) : undefined,
   };
 }
 
@@ -80,7 +92,8 @@ export async function syncScores({ full = false } = {}) {
   const lo = new Date(now - 4 * 864e5).toISOString();
   const { data, error } = await sb
     .from('games')
-    .select('id,league,espn_event_id,kickoff,status,away_score,home_score,status_detail,possession,situation,market_spread,market_total,weeks!inner(season,nfl_week,cfb_week,status)')
+    // select * so newer optional columns (ranks/records) are only written once they exist
+    .select('*,weeks!inner(season,nfl_week,cfb_week,status)')
     .in('status', ['scheduled', 'in'])
     .gte('kickoff', lo)
     .lte('kickoff', hi)
@@ -121,7 +134,7 @@ export async function syncScores({ full = false } = {}) {
     const p = parse(e, r.league);
     const patch: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(p)) {
-      if (v === undefined) continue;
+      if (v === undefined || !(k in r)) continue;
       const cur = (r as any)[k];
       if (k === 'kickoff' ? new Date(cur).getTime() !== new Date(v as string).getTime() : cur == null ? v != null : Number.isFinite(Number(cur)) && typeof v === 'number' ? Number(cur) !== v : cur !== v)
         patch[k] = v;
