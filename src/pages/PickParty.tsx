@@ -164,6 +164,7 @@ export function PickPartyPage() {
       >
         {t.logo ? <img src={t.logo} alt="" /> : null}
         <span>{t.abbr}</span>
+        <span className="pt-spread">{fmtSpread(t.id === g.home_team_id ? Number(g.home_spread) : -Number(g.home_spread))}</span>
       </button>
     );
   };
