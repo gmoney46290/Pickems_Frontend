@@ -60,6 +60,7 @@ export interface Game {
   home_rank: number | null;
   away_record: string | null;
   home_record: string | null;
+  broadcast: string | null;
   away_score: number | null;
   home_score: number | null;
   status: 'scheduled' | 'in' | 'final' | 'canceled';

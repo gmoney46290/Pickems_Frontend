@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
+import { KeyPlayers } from '../components/KeyPlayers';
 import { TeamForm } from '../components/TeamForm';
 import { VegasChip } from '../components/VegasChip';
 import { useToast } from '../components/Toast';
@@ -250,8 +251,11 @@ export function PickPartyPage() {
             <TeamForm team={away} game={game} season={week.season} />
             <TeamForm team={home} game={game} season={week.season} />
           </div>
+          {game.league === 'cfb' && <KeyPlayers game={game} away={away} home={home} />}
           <div className="center muted" style={{ fontWeight: 700 }}>
-            {game.league === 'nfl' ? '🏟️ Pro' : '🎓 College'} · game {idx + 1} of {weekGames.length} · {new Date(game.kickoff).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}{locked ? ' · 🔒 locked' : ''}
+            {game.league === 'nfl' ? '🏟️ Pro' : '🎓 College'} · game {idx + 1} of {weekGames.length} · {new Date(game.kickoff).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
+            {game.broadcast && <> · <span className="tv-chip">📺 {game.broadcast}</span></>}
+            {locked ? ' · 🔒 locked' : ''}
           </div>
           <div className="split-bar" style={{ width: '100%', height: 12, margin: '6px 0 4px' }}>
             <div style={{ flex: nAway || 0.0001, background: away.color ?? '#888' }} />
@@ -301,6 +305,7 @@ export function PickPartyPage() {
                     </div>
                     <div className="grid-line">{Number(g.home_spread) <= 0 ? home.abbr : away.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}</div>
                     {(g.away_record || g.home_record) && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
+                    {g.broadcast && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>📺 {g.broadcast}</div>}
                     <VegasChip game={g} away={away} home={home} />
                   </td>
                   {players.map(p => (

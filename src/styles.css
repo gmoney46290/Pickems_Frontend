@@ -457,3 +457,9 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 .form-res { font-family: var(--display); font-size: 11px; width: 20px; height: 20px; display: grid; place-content: center; border-radius: 6px; color: white; background: var(--push); }
 .form-res.W { background: var(--win); }
 .form-res.L { background: var(--loss); }
+
+.tv-chip { display: inline-flex; align-items: center; gap: 3px; font-size: 11px; font-weight: 700; color: var(--ink); background: white; border: 2px solid var(--ink); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+.key-player { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.key-player img, .kp-blank { width: 44px; height: 44px; flex: none; border-radius: 50%; object-fit: cover; object-position: top; background: white; border: 2px solid var(--ink); display: grid; place-content: center; }
+.kp-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kp-stat { font-size: 12px; }

@@ -267,6 +267,7 @@ function WeekEditor({ weekId, onDone }: { weekId: number | null; onDone: () => v
         home_rank: s.e.home.rank ?? null,
         away_record: s.e.away.record ?? null,
         home_record: s.e.home.record ?? null,
+        broadcast: s.e.broadcast,
         sort: i,
       }));
       ({ error } = await supabase.from('games').upsert(rows, { onConflict: 'week_id,espn_event_id' }));

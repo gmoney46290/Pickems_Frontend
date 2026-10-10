@@ -42,7 +42,14 @@ interface Row {
   home_rank: number | null;
   away_record: string | null;
   home_record: string | null;
+  broadcast: string | null;
   weeks: { season: number; nfl_week: number | null; cfb_week: number | null; status: string };
+}
+
+function broadcastOf(c: any): string | null {
+  const names: string[] = [...new Set<string>((c.broadcasts ?? []).flatMap((b: any) => b.names ?? []))];
+  if (!names.length) names.push(...new Set<string>((c.geoBroadcasts ?? []).map((g: any) => g.media?.shortName).filter(Boolean)));
+  return names.length ? names.slice(0, 2).join('/') : null;
 }
 
 function parse(e: any, league: League) {
@@ -77,6 +84,7 @@ function parse(e: any, league: League) {
     home_rank: pre ? rank(home) : undefined,
     away_record: pre ? rec(away) : undefined,
     home_record: pre ? rec(home) : undefined,
+    broadcast: broadcastOf(c) ?? undefined,
   };
 }
 

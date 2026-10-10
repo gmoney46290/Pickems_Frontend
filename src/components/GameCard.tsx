@@ -164,7 +164,10 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
   return (
     <div ref={cardRef} className={`game ${myPick?.is_dd ? 'dd' : ''}`}>
       <div className="game-top">
-        {status}
+        <span className="row" style={{ gap: 6 }}>
+          {status}
+          {game.broadcast && <span className="tv-chip">📺 {game.broadcast}</span>}
+        </span>
         <span className="row" style={{ gap: 4 }}>
           {tweaked && (
             <span className="chip yellow" title="Our line differs from DraftKings">

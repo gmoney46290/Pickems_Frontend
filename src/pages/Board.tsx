@@ -52,6 +52,7 @@ export function BoardPage() {
             {fav.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}
             {g.away_score != null && g.status !== 'scheduled' && ` · ${g.away_score}-${g.home_score}`}
             {g.status === 'in' && ' 🔴'}
+            {g.broadcast && g.status === 'scheduled' && ` · 📺 ${g.broadcast}`}
             {coveredBy && ` · ✅ ${coveredBy.abbr}`}
             {res === 'push' && ' · push'}
           </div>

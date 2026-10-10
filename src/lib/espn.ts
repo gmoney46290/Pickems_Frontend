@@ -35,6 +35,16 @@ async function getJson(url: string) {
   return r.json();
 }
 
+/** "ESPN", or "FOX/FS1" when it's on more than one network. */
+export function broadcastOf(c: any): string | null {
+  const names: string[] = [...new Set<string>((c.broadcasts ?? []).flatMap((b: any) => b.names ?? []))];
+  if (!names.length) {
+    const geo = (c.geoBroadcasts ?? []).map((g: any) => g.media?.shortName).filter(Boolean);
+    names.push(...new Set<string>(geo));
+  }
+  return names.length ? names.slice(0, 2).join('/') : null;
+}
+
 function parseEvent(e: any, league: League): EspnGame {
   const c = e.competitions[0];
   const side = (ha: string) => {
@@ -63,7 +73,7 @@ function parseEvent(e: any, league: League): EspnGame {
     spreadDetails: o?.details ?? null,
     overUnder: o?.overUnder ?? null,
     status: e.status?.type?.name ?? '',
-    broadcast: c.broadcasts?.[0]?.names?.[0] ?? null,
+    broadcast: broadcastOf(c),
   };
 }
 
@@ -173,4 +183,53 @@ export function fetchRecent(league: League, espnId: string, season: number, befo
     );
   }
   return recentCache.get(key)!;
+}
+
+export interface KeyPlayer {
+  category: string; // "Passing", "Rushing", "Receiving"
+  name: string;
+  position: string;
+  jersey: string | null;
+  headshot: string | null;
+  stat: string; // "63/89, 900 YDS, 6 TD"
+}
+
+const leaderCache = new Map<string, Promise<Map<string, KeyPlayer[]>>>();
+const LEADER_CATS: Record<string, string> = { passingYards: 'Passing', rushingYards: 'Rushing', receivingYards: 'Receiving' };
+
+/**
+ * Each team's top passer/rusher/receiver from ESPN's game summary, keyed by ESPN team id.
+ * Before kickoff these are season leaders; once a game starts ESPN switches to game leaders.
+ */
+export function fetchKeyPlayers(league: League, eventId: string): Promise<Map<string, KeyPlayer[]>> {
+  const key = `${league}-${eventId}`;
+  if (!leaderCache.has(key)) {
+    leaderCache.set(
+      key,
+      getJson(`${BASE}/${path(league)}/summary?event=${eventId}`)
+        .then(d => {
+          const out = new Map<string, KeyPlayer[]>();
+          for (const t of d.leaders ?? []) {
+            const list: KeyPlayer[] = [];
+            for (const cat of t.leaders ?? []) {
+              const label = LEADER_CATS[cat.name];
+              const l = cat.leaders?.[0];
+              if (!label || !l?.athlete) continue;
+              list.push({
+                category: label,
+                name: l.athlete.displayName ?? l.athlete.shortName,
+                position: l.athlete.position?.abbreviation ?? '',
+                jersey: l.athlete.jersey ?? null,
+                headshot: l.athlete.headshot?.href ?? null,
+                stat: l.displayValue ?? '',
+              });
+            }
+            out.set(String(t.team?.id), list);
+          }
+          return out;
+        })
+        .catch(() => new Map()),
+    );
+  }
+  return leaderCache.get(key)!;
 }
