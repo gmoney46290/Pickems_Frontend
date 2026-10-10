@@ -464,6 +464,5 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 .kp-name { font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .kp-stat { font-size: 12px; }
 
-.party-team .pt-spread { font-family: var(--display); font-size: 12px; }
-.party-team.big .pt-spread { font-size: 17px; }
+.party-team .pt-spread { font: inherit; }
 .party-team.big { min-width: 150px; }
