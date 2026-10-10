@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
@@ -45,9 +46,9 @@ export function BoardPage() {
     return (
       <tr key={g.id}>
         <td className="game-col">
-          <div style={{ fontWeight: 700 }}>
-            {g.away_rank ? <span className="team-rank">#{g.away_rank}</span> : null}{away.abbr} @ {g.home_rank ? <span className="team-rank">#{g.home_rank}</span> : null}{home.abbr}
-          </div>
+          <Link to={`/party?week=${g.week_id}&game=${g.id}`} style={{ fontWeight: 700, textDecoration: 'none', display: 'block' }} title="Open in Pick Party">
+            {g.away_rank ? <span className="team-rank">#{g.away_rank}</span> : null}{away.abbr} @ {g.home_rank ? <span className="team-rank">#{g.home_rank}</span> : null}{home.abbr} <span style={{ fontSize: 11 }}>🔎</span>
+          </Link>
           <div className="muted" style={{ fontSize: 11 }}>
             {fav.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}
             {g.away_score != null && g.status !== 'scheduled' && ` · ${g.away_score}-${g.home_score}`}

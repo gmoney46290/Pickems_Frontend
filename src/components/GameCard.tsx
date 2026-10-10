@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { atsSide, fmtSpread, isLocked, pickPoints, pickedSide, scoreCallHits } from '../lib/scoring';
 import type { Game, Pick, Player, Team } from '../lib/types';
 import { LineShop } from './LineShop';
@@ -227,6 +228,9 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         <button className={`btn small ${showLines ? 'yellow' : ''}`} onClick={() => setShowLines(s => !s)}>
           📊 Lines
         </button>
+        <Link className="btn small" to={`/party?week=${game.week_id}&game=${game.id}`} title="Records, last 3 games, key players and everyone's picks">
+          🔎 Details
+        </Link>
       </div>
 
       {showLines && <LineShop game={game} home={home} away={away} />}

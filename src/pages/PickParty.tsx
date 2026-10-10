@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Navigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { KeyPlayers } from '../components/KeyPlayers';
 import { TeamForm } from '../components/TeamForm';
@@ -38,6 +38,20 @@ export function PickPartyPage() {
   const pickMap = useMemo(() => new Map(picks.map(p => [`${p.game_id}:${p.player_id}`, p])), [picks]);
   const pickOf = (gid: number, pid: string) => pickMap.get(`${gid}:${pid}`);
 
+  // Deep link from a game card / the Board: /party?week=4&game=123 opens that game.
+  const appliedGame = useRef<number | null>(null);
+  useEffect(() => {
+    const gid = Number(params.get('game'));
+    if (!gid || appliedGame.current === gid) return;
+    const i = weekGames.findIndex(g => g.id === gid);
+    if (i >= 0) {
+      appliedGame.current = gid;
+      setIdx(i);
+      setView('room');
+      window.scrollTo({ top: 0 });
+    }
+  }, [params, weekGames]);
+
   const game = weekGames[Math.min(idx, weekGames.length - 1)];
 
   useEffect(() => {
@@ -51,7 +65,6 @@ export function PickPartyPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [view, weekGames.length]);
 
-  if (ready && !me) return <Navigate to="/login" replace />;
   if (!week) return <div className="card empty"><div className="big">🎉</div><p>No weeks to party on yet.</p></div>;
 
   const editable = (g: Game) => (override && !!me?.is_admin) || !isLocked(g, Date.now(), week);
