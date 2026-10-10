@@ -318,9 +318,9 @@ export function PickPartyPage() {
                       {isLocked(g, Date.now(), week) && ' 🔒'}
                     </div>
                     <div className="grid-line">{Number(g.home_spread) <= 0 ? home.abbr : away.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}</div>
-                    {(g.away_record || g.home_record) && <div className="muted hide-sm" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
-                    {g.broadcast && <div className="muted hide-sm" style={{ fontSize: 11, fontWeight: 700 }}>📺 {g.broadcast}</div>}
-                    <span className="hide-sm"><VegasChip game={g} away={away} home={home} /></span>
+                    {(g.away_record || g.home_record) && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
+                    {g.broadcast && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>📺 {g.broadcast}</div>}
+                    <VegasChip game={g} away={away} home={home} />
                   </td>
                   {players.map(p => (
                     <td key={p.id} style={!canEditPlayer(p) ? { opacity: 0.8 } : undefined}>
