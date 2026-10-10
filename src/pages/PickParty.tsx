@@ -241,7 +241,7 @@ export function PickPartyPage() {
         </div>
         <div className="card panel room">
           <div className="room-head">
-            <button className="btn" disabled={idx === 0} onClick={() => setIdx(i => i - 1)}>← Prev</button>
+            <button className="btn" disabled={idx === 0} onClick={() => setIdx(i => i - 1)}>←<span className="hide-sm"> Prev</span></button>
             <div className="room-matchup">
               {[away, home].map((t, i) => {
                 const isHome = i === 1;
@@ -258,7 +258,7 @@ export function PickPartyPage() {
               })}
               <div className="display muted" style={{ order: 1 }}>@</div>
             </div>
-            <button className="btn" disabled={idx >= weekGames.length - 1} onClick={() => setIdx(i => i + 1)}>Next →</button>
+            <button className="btn" disabled={idx >= weekGames.length - 1} onClick={() => setIdx(i => i + 1)}><span className="hide-sm">Next </span>→</button>
           </div>
           <div className="center"><VegasChip game={game} away={away} home={home} /></div>
           <div className="room-form">
@@ -281,12 +281,12 @@ export function PickPartyPage() {
           <div className="room-rows">
             {players.map(p => (
               <div key={p.id} className="room-row">
-                <div className="row" style={{ minWidth: 120 }}><Avatar p={p} /> <b>{p.name}</b></div>
-                <div className="row" style={{ gap: 8 }}>
+                <div className="row rr-who" style={{ minWidth: 120 }}><Avatar p={p} /> <b>{p.name}</b></div>
+                <div className="row rr-teams" style={{ gap: 8 }}>
                   {teamPickBtn(game, p, away, true)}
                   {teamPickBtn(game, p, home, true)}
                 </div>
-                <div className="row" style={{ gap: 6 }}>{extras(game, p, away, home, true)}</div>
+                <div className="row rr-extras" style={{ gap: 6 }}>{extras(game, p, away, home, true)}</div>
               </div>
             ))}
           </div>
@@ -318,9 +318,9 @@ export function PickPartyPage() {
                       {isLocked(g, Date.now(), week) && ' 🔒'}
                     </div>
                     <div className="grid-line">{Number(g.home_spread) <= 0 ? home.abbr : away.abbr} {fmtSpread(-Math.abs(Number(g.home_spread)))}</div>
-                    {(g.away_record || g.home_record) && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
-                    {g.broadcast && <div className="muted" style={{ fontSize: 11, fontWeight: 700 }}>📺 {g.broadcast}</div>}
-                    <VegasChip game={g} away={away} home={home} />
+                    {(g.away_record || g.home_record) && <div className="muted hide-sm" style={{ fontSize: 11, fontWeight: 700 }}>{g.away_record ?? '–'} · {g.home_record ?? '–'}</div>}
+                    {g.broadcast && <div className="muted hide-sm" style={{ fontSize: 11, fontWeight: 700 }}>📺 {g.broadcast}</div>}
+                    <span className="hide-sm"><VegasChip game={g} away={away} home={home} /></span>
                   </td>
                   {players.map(p => (
                     <td key={p.id} style={!canEditPlayer(p) ? { opacity: 0.8 } : undefined}>

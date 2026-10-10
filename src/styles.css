@@ -101,7 +101,7 @@ img { display: block; }
     background: var(--ink); padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
     justify-content: space-around; gap: 4px; flex-wrap: nowrap;
   }
-  .nav a { font-size: 11px; padding: 8px 10px; box-shadow: none; border-width: 2px; }
+  .nav a { flex: 1 1 0; min-width: 0; display: flex; justify-content: center; font-size: 11px; padding: 8px 0; box-shadow: none; border-width: 2px; }
   .nav a .lbl { display: none; }
   .nav a .ico { font-size: 20px; }
 }
@@ -369,13 +369,21 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 
 /* ------------------------------------------------------------------ admin */
 
-.admin-grid { display: grid; gap: 16px; grid-template-columns: 1fr; }
+.admin-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.admin-grid > * { min-width: 0; }
+.tbl td { white-space: nowrap; }
 .slate { max-height: 520px; overflow: auto; border: 2px solid var(--ink); border-radius: 10px; background: white; }
 .slate-row { display: grid; grid-template-columns: 28px 1fr 110px; gap: 8px; align-items: center; padding: 6px 10px; border-bottom: 1px solid #eee; font-size: 14px; }
 .slate-row.sel { background: var(--win-bg); }
 .slate-row img { width: 20px; height: 20px; object-fit: contain; display: inline-block; vertical-align: middle; }
 .slate-row input[type=number] { width: 100%; }
+.tbl-wrap { overflow-x: auto; margin: 0 -4px; padding: 0 4px; }
 .tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
+.tbl td .row { flex-wrap: nowrap; }
+.tbl .chip, .tbl .btn { white-space: nowrap; }
+.tbl input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--pink); }
+.tbl input[type=color] { width: 44px; height: 32px; border: 2px solid var(--ink); border-radius: 8px; padding: 2px; background: white; }
+.tbl input[type=datetime-local] { padding: 4px 6px; font-size: 13px; }
 .tbl td, .tbl th { padding: 6px; border-bottom: 1px solid #e8dfc8; text-align: left; vertical-align: middle; }
 .tbl th { font-size: 11px; text-transform: uppercase; color: var(--muted); }
 .tbl input.input { padding: 4px 6px; }
@@ -439,10 +447,22 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 }
 .room-row > :last-child { justify-content: flex-end; }
 @media (max-width: 640px) {
-  .room-row { grid-template-columns: 1fr; }
-  .room-row > :last-child { justify-content: flex-start; }
-  .room-team img { width: 48px; height: 48px; }
-  .room-team { font-size: 14px; }
+  /* name + 🔥🎯 on one line, the two team buttons full width underneath */
+  .room-row { grid-template-columns: 1fr auto; grid-template-areas: 'who extras' 'teams teams'; gap: 8px; padding: 8px; }
+  .rr-who { grid-area: who; min-width: 0 !important; }
+  .rr-extras { grid-area: extras; }
+  .rr-teams { grid-area: teams; display: grid !important; grid-template-columns: 1fr 1fr; }
+  .party-team.big { min-width: 0; padding: 8px 6px; font-size: 14px; }
+  .party-team.big img { width: 26px; height: 26px; }
+  .room-head { gap: 6px; }
+  .room-head .btn { padding: 8px 10px; }
+  .room-matchup { gap: 8px; min-width: 0; }
+  .room-team img { width: 44px; height: 44px; }
+  .room-team { font-size: 13px; text-align: center; }
+  .room.panel { padding: 10px; }
+  /* progress cards become a swipeable strip instead of a wall */
+  .party-progress { display: flex; overflow-x: auto; padding-bottom: 6px; }
+  .party-prog { flex: none; width: 200px; padding: 6px 8px; }
 }
 
 .room-spread { font-family: var(--display); font-size: 22px; background: var(--ink); color: white; border-radius: 10px; padding: 2px 12px; }
@@ -466,3 +486,8 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 
 .party-team .pt-spread { font: inherit; }
 .party-team.big { min-width: 150px; }
+
+@media (max-width: 640px) {
+  .party-grid th.game-col, .party-grid td.game-col { min-width: 0; max-width: 120px; padding: 6px; white-space: normal; font-size: 12px; }
+  .party-grid .grid-line { font-size: 13px; }
+}

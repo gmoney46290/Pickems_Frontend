@@ -90,7 +90,7 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
         <h3 className="display grow" style={{ margin: 0 }}>🗓️ Weeks</h3>
         <button className="btn primary" onClick={() => onEdit('new')}>➕ New week</button>
       </div>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th>Week</th>
@@ -135,15 +135,17 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
                     </span>
                   )}
                 </td>
-                <td className="row" style={{ justifyContent: 'flex-end' }}>
-                  <button className="btn small" onClick={() => onEdit(w.id)}>Edit</button>
-                  <button className="btn small" onClick={() => del(w)}>🗑️</button>
+                <td>
+                  <div className="row" style={{ justifyContent: 'flex-end' }}>
+                    <button className="btn small" onClick={() => onEdit(w.id)}>Edit</button>
+                    <button className="btn small" onClick={() => del(w)}>🗑️</button>
+                  </div>
                 </td>
               </tr>
             );
           })}
         </tbody>
-      </table>
+      </table></div>
     </div>
   );
 }
@@ -394,7 +396,7 @@ function ResultsEditor({ games }: { games: Game[] }) {
   return (
     <>
       <div className="section-title" style={{ marginTop: 16 }}>🧮 Results (manual override)</div>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr><th>Game</th><th>Our line</th><th>Away</th><th>Home</th><th>Status</th></tr>
         </thead>
@@ -416,7 +418,7 @@ function ResultsEditor({ games }: { games: Game[] }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
     </>
   );
 }
@@ -451,7 +453,7 @@ function PhasesPanel() {
     <div className="card panel">
       <h3 className="display" style={{ marginTop: 0 }}>🧩 Phases (mini-seasons)</h3>
       <p className="muted" style={{ marginTop: 0 }}>Group weeks into phases. Each phase gets its own standings tab.</p>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr>
             <th>Phase</th>
@@ -471,7 +473,7 @@ function PhasesPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       <div className="row" style={{ marginTop: 10 }}>
         <input className="input" style={{ width: 60, textAlign: 'center' }} value={emoji} onChange={e => setEmoji(e.target.value)} aria-label="emoji" />
         <input className="input grow" placeholder="e.g. Phase 1: Early Season Chaos" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
@@ -502,7 +504,7 @@ function PlayersPanel() {
   return (
     <div className="card panel">
       <h3 className="display" style={{ marginTop: 0 }}>👥 Players</h3>
-      <table className="tbl">
+      <div className="tbl-wrap"><table className="tbl">
         <thead>
           <tr><th>Emoji</th><th>Name</th><th>Color</th><th>Account</th><th>Admin</th></tr>
         </thead>
@@ -525,7 +527,7 @@ function PlayersPanel() {
             </tr>
           ))}
         </tbody>
-      </table>
+      </table></div>
       <div className="row" style={{ marginTop: 10 }}>
         <input className="input grow" placeholder="New player name" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && add()} />
         <button className="btn primary" onClick={add}>Add player</button>
