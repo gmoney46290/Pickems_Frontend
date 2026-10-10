@@ -5,21 +5,21 @@ import type { Game, Team } from '../lib/types';
 const ICON: Record<string, string> = { Passing: '🎯', Rushing: '🏃', Receiving: '🙌' };
 
 /** Headshots + season stat lines for each team's top passer, rusher and receiver. */
-export function KeyPlayers({ game, away, home }: { game: Game; away: Team; home: Team }) {
+export function KeyPlayers({ game, away, home, season }: { game: Game; away: Team; home: Team; season: number }) {
   const [data, setData] = useState<Map<string, KeyPlayer[]> | null>(null);
 
   useEffect(() => {
-    if (!game.espn_event_id) return;
     let dead = false;
     setData(null);
-    fetchKeyPlayers(game.league, game.espn_event_id).then(d => !dead && setData(d));
+    Promise.all([away, home].map(t => fetchKeyPlayers(t.league, t.espn_id, season).then(l => [t.espn_id, l] as const))).then(
+      pairs => !dead && setData(new Map(pairs)),
+    );
     return () => {
       dead = true;
     };
-  }, [game.espn_event_id, game.league]);
+  }, [away.id, home.id, season]);
 
-  if (!game.espn_event_id) return null;
-  const label = game.status === 'scheduled' ? 'Players to watch (season stats)' : 'Game leaders';
+  const label = 'Key players (season stats)';
 
   return (
     <div>

@@ -265,7 +265,7 @@ export function PickPartyPage() {
             <TeamForm team={away} game={game} season={week.season} />
             <TeamForm team={home} game={game} season={week.season} />
           </div>
-          <KeyPlayers game={game} away={away} home={home} />
+          <KeyPlayers game={game} away={away} home={home} season={week.season} />
           <div className="center muted" style={{ fontWeight: 700 }}>
             {game.league === 'nfl' ? '🏟️ Pro' : '🎓 College'} · game {idx + 1} of {weekGames.length} · {new Date(game.kickoff).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}
             {game.broadcast && <> · <span className="tv-chip">📺 {game.broadcast}</span></>}

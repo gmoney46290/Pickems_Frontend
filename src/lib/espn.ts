@@ -194,41 +194,36 @@ export interface KeyPlayer {
   stat: string; // "63/89, 900 YDS, 6 TD"
 }
 
-const leaderCache = new Map<string, Promise<Map<string, KeyPlayer[]>>>();
-const LEADER_CATS: Record<string, string> = { passingYards: 'Passing', rushingYards: 'Rushing', receivingYards: 'Receiving' };
+const leaderCache = new Map<string, Promise<KeyPlayer[]>>();
+const CORE = 'https://sports.core.api.espn.com/v2/sports/football/leagues';
+const LEADER_CATS: [string, string][] = [['passingLeader', 'Passing'], ['rushingLeader', 'Rushing'], ['receivingLeader', 'Receiving']];
+const https = (u: string) => u.replace(/^http:/, 'https:');
 
-/**
- * Each team's top passer/rusher/receiver from ESPN's game summary, keyed by ESPN team id.
- * Before kickoff these are season leaders; once a game starts ESPN switches to game leaders.
- */
-export function fetchKeyPlayers(league: League, eventId: string): Promise<Map<string, KeyPlayer[]>> {
-  const key = `${league}-${eventId}`;
+/** A team's season leaders (top passer, rusher, receiver) with headshots and season stat lines. */
+export function fetchKeyPlayers(league: League, espnTeamId: string, season: number): Promise<KeyPlayer[]> {
+  const key = `${league}-${espnTeamId}-${season}`;
   if (!leaderCache.has(key)) {
     leaderCache.set(
       key,
-      getJson(`${BASE}/${path(league)}/summary?event=${eventId}`)
-        .then(d => {
-          const out = new Map<string, KeyPlayer[]>();
-          for (const t of d.leaders ?? []) {
-            const list: KeyPlayer[] = [];
-            for (const cat of t.leaders ?? []) {
-              const label = LEADER_CATS[cat.name];
-              const l = cat.leaders?.[0];
-              if (!label || !l?.athlete) continue;
-              list.push({
+      getJson(`${CORE}/${path(league)}/seasons/${season}/types/2/teams/${espnTeamId}/leaders`)
+        .then(async d => {
+          const cats = d.categories ?? [];
+          const picks = LEADER_CATS.map(([name, label]) => ({ label, l: cats.find((c: any) => c.name === name)?.leaders?.[0] })).filter(x => x.l?.athlete?.$ref);
+          return Promise.all(
+            picks.map(async ({ label, l }): Promise<KeyPlayer> => {
+              const a = await getJson(https(l.athlete.$ref)).catch(() => ({}));
+              return {
                 category: label,
-                name: l.athlete.displayName ?? l.athlete.shortName,
-                position: l.athlete.position?.abbreviation ?? '',
-                jersey: l.athlete.jersey ?? null,
-                headshot: l.athlete.headshot?.href ?? null,
+                name: a.displayName ?? a.shortName ?? '—',
+                position: a.position?.abbreviation ?? '',
+                jersey: a.jersey ?? null,
+                headshot: a.headshot?.href ?? null,
                 stat: l.displayValue ?? '',
-              });
-            }
-            out.set(String(t.team?.id), list);
-          }
-          return out;
+              };
+            }),
+          );
         })
-        .catch(() => new Map()),
+        .catch(() => []),
     );
   }
   return leaderCache.get(key)!;
