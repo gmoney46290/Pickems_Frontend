@@ -134,7 +134,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
 
   const me = useMemo(() => players.find(p => p.user_id && p.user_id === session?.user.id) ?? null, [players, session]);
   const teams = useMemo(() => new Map(teamList.map(t => [t.id, t])), [teamList]);
-  const boxIndex = useMemo(() => indexBoxes(boxes), [boxes]);
+  const boxIndex = useMemo(() => indexBoxes(boxes, games), [boxes, games]);
   const weekById = useMemo(() => new Map(weeks.map(w => [w.id, w])), [weeks]);
   const score = useCallback(
     (g: Game, p: Pick | undefined, live = false) =>

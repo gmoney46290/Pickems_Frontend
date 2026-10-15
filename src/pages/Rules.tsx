@@ -15,15 +15,17 @@ export function RulesPage() {
         <li>Nobody knows what's in your box until you play it. Then it's public.</li>
       </ul>
       <ul style={{ listStyle: 'none', paddingLeft: 0 }}>
-        {Object.values(ITEMS).map(it => (
+        {Object.values(ITEMS).filter(it => !it.retired).map(it => (
           <li key={it.key}>
             <b>{it.emoji} {it.name}</b> · {it.blurb}
             {it.key === 'landmine' && ' Stacks with a double down (a losing DD becomes −2).'}
             {it.key === 'taser' && ' Stacks: two tasers = 4 points harder.'}
             {it.key === 'lone_wolf' && ' Nobody can switch sides on that game afterward.'}
+            {it.key === 'super_dawg' && " Underdog = the team getting points on our line. Doesn't matter who you picked."}
           </li>
         ))}
       </ul>
+      <p className="muted" style={{ fontSize: 13 }}>🎲 Dice were retired after week 5 (two rolls, two zeros, zero fun). Super Dawg took their spot.</p>
       <p className="muted" style={{ fontSize: 13 }}>Q1 weeks are final and keep the old rules (score calls within 2 = +3).</p>
 
       <h3>🏈 Pick every game against the spread</h3>

@@ -31,7 +31,7 @@ export function StandingsPage() {
     return visible.filter(w => ids.has(w.id));
   }, [scope, weeks, phaseWeeks]);
   const weekIds = useMemo(() => new Set(scopedWeeks.map(w => w.id)), [scopedWeeks]);
-  const lines = useMemo(() => buildStandings(players, games, picks, weekIds, score, boxIndex.dice), [players, games, picks, weekIds, score, boxIndex]);
+  const lines = useMemo(() => buildStandings(players, games, picks, weekIds, score, boxIndex.bonus), [players, games, picks, weekIds, score, boxIndex]);
   const r = ranks(lines);
   const playedWeeks = scopedWeeks.filter(w => games.some(g => g.week_id === w.id && g.status === 'final'));
 
@@ -72,7 +72,7 @@ export function StandingsPage() {
                   <span className="chip">ATS {record} ({pct}%)</span>
                   <span className="chip">🔥 {l.ddWins}-{l.ddLosses}</span>
                   <span className="chip">🎯 {l.bullseyes}/{l.scoreCalls}</span>
-                  {l.dice !== 0 && <span className="chip">🎲 {l.dice > 0 ? '+' : ''}{l.dice}</span>}
+                  {l.boxBonus !== 0 && <span className="chip">🎁 {l.boxBonus > 0 ? '+' : ''}{l.boxBonus}</span>}
                   {last && <span className="chip pink">toilet bowl 🚽</span>}
                 </div>
               </div>

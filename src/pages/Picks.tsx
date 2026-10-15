@@ -58,9 +58,9 @@ export function PicksPage() {
   const scoreCalls = mine.filter(p => p?.score_away != null).length;
   const ddFor = (lg: League) => weekGames.find(g => g.league === lg && myPicks.get(g.id)?.is_dd);
   const hasLeague = (lg: League) => weekGames.some(g => g.league === lg);
-  const myPts = weekGames.reduce((s, g) => s + score(g, myPicks.get(g.id), true).total, 0) + (actor ? boxIndex.dice(week.id, actor.id) : 0);
+  const myPts = weekGames.reduce((s, g) => s + score(g, myPicks.get(g.id), true).total, 0) + (actor ? boxIndex.bonus(week.id, actor.id, true) : 0);
 
-  const standings = buildStandings(players, games, picks, new Set([week.id]), score, boxIndex.dice);
+  const standings = buildStandings(players, games, picks, new Set([week.id]), score, boxIndex.bonus);
   const liveSorted = [...standings].sort((a, b) => b.live - a.live);
   const r = ranks(liveSorted.map(l => ({ ...l, total: l.live })));
   const myRank = actor ? r[liveSorted.findIndex(l => l.player.id === actor.id)] : null;
@@ -133,9 +133,7 @@ export function PicksPage() {
               <span className={`check ${pickedCount === weekGames.length ? 'done' : 'todo'}`}>
                 {pickedCount === weekGames.length ? '✅' : '📝'} {pickedCount}/{weekGames.length} picked
               </span>
-              {week.ruleset === 'boxes' && <MysteryBoxes week={week} actor={actor} weekGames={weekGames} />}
-
-      {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
+              {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
                 <span key={lg} className={`check ${ddFor(lg) ? 'done' : 'todo'}`}>
                   🔥 {LEAGUE_META[lg].title} DD {ddFor(lg) ? '✓' : '—'}
                 </span>
@@ -162,6 +160,8 @@ export function PicksPage() {
           </div>
         )}
       </div>
+
+      {week.ruleset === 'boxes' && <MysteryBoxes week={week} actor={actor} weekGames={weekGames} />}
 
       {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
         <section key={lg}>

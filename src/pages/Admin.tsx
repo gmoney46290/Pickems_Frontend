@@ -514,8 +514,17 @@ function PhasesPanel() {
 // ---------------------------------------------------------------- players
 
 function PlayersPanel() {
-  const { players, reload, me } = useLeague();
+  const { players, reload, me, weeks } = useLeague();
   const toast = useToast();
+  // Gift boxes go to the latest open mystery-box week.
+  const boxWeek = [...weeks].filter(w => w.ruleset === 'boxes' && w.status === 'open').sort((a, b) => b.number - a.number)[0];
+  const gift = async (p: { id: string; name: string }) => {
+    if (!boxWeek || !confirm(`Give ${p.name} an extra mystery box for ${weekTitle(boxWeek)}?`)) return;
+    const { error } = await supabase.rpc('gift_box', { p_week: boxWeek.id, p_player: p.id });
+    if (error) return toast(error.message, true);
+    toast(`🎁 ${p.name} got a gift box`);
+    reload();
+  };
   const [name, setName] = useState('');
   const upd = async (id: string, patch: Record<string, unknown>) => {
     const { error } = await supabase.from('players').update(patch).eq('id', id);
@@ -534,7 +543,7 @@ function PlayersPanel() {
       <h3 className="display" style={{ marginTop: 0 }}>👥 Players</h3>
       <div className="tbl-wrap"><table className="tbl">
         <thead>
-          <tr><th>Emoji</th><th>Name</th><th>Color</th><th>Account</th><th>Admin</th></tr>
+          <tr><th>Emoji</th><th>Name</th><th>Color</th><th>Account</th><th>Admin</th>{boxWeek && <th>Box</th>}</tr>
         </thead>
         <tbody>
           {players.map(p => (
@@ -552,6 +561,11 @@ function PlayersPanel() {
                 )}
               </td>
               <td><input type="checkbox" checked={p.is_admin} disabled={p.id === me?.id} onChange={e => upd(p.id, { is_admin: e.target.checked })} /></td>
+              {boxWeek && (
+                <td>
+                  <button className="btn small" onClick={() => gift(p)} title={`Extra box for ${weekTitle(boxWeek)}`}>🎁 Give box</button>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>

@@ -17,7 +17,7 @@ export interface Line {
   byWeek: Map<number, number>;
   weeksWon: number;
   live: number; // points including in-progress games
-  dice: number; // net mystery-box dice rolls
+  boxBonus: number; // points from Super Dawg wins (and retired dice rolls)
 }
 
 export type Scorer = (g: Game, p: Pick | undefined, live?: boolean) => PickPoints;
@@ -29,14 +29,14 @@ export function buildStandings(
   picks: Pick[],
   weekIds: Set<number> | null,
   score: Scorer = classic,
-  /** dice roll total for a player in a week */
-  dice: (weekId: number, playerId: string) => number = () => 0,
+  /** box points not tied to a pick (Super Dawg, old dice) for a player in a week */
+  boxBonus: (weekId: number, playerId: string, live?: boolean) => number = () => 0,
 ): Line[] {
   const gameById = new Map(games.map(g => [g.id, g]));
   const lines = new Map<string, Line>(
     players.map(p => [
       p.id,
-      { player: p, total: 0, ats: 0, bonus: 0, wins: 0, losses: 0, pushes: 0, ddWins: 0, ddLosses: 0, bullseyes: 0, scoreCalls: 0, byWeek: new Map(), weeksWon: 0, live: 0, dice: 0 },
+      { player: p, total: 0, ats: 0, bonus: 0, wins: 0, losses: 0, pushes: 0, ddWins: 0, ddLosses: 0, bullseyes: 0, scoreCalls: 0, byWeek: new Map(), weeksWon: 0, live: 0, boxBonus: 0 },
     ]),
   );
   for (const pk of picks) {
@@ -56,15 +56,15 @@ export function buildStandings(
     if (r.outcome === 'push') l.pushes++;
     l.byWeek.set(g.week_id, (l.byWeek.get(g.week_id) ?? 0) + r.total);
   }
-  // Dice rolls count toward the week they were rolled in.
+  // Box points (Super Dawg, old dice) count toward their week.
   const weekIdsSeen = new Set(games.filter(g => !weekIds || weekIds.has(g.week_id)).map(g => g.week_id));
   for (const l of lines.values())
     for (const w of weekIdsSeen) {
-      const d = dice(w, l.player.id);
+      const d = boxBonus(w, l.player.id);
+      l.live += boxBonus(w, l.player.id, true);
       if (!d) continue;
-      l.dice += d;
+      l.boxBonus += d;
       l.total += d;
-      l.live += d;
       l.byWeek.set(w, (l.byWeek.get(w) ?? 0) + d);
     }
   // Weekly winners (ties share the crown) — only for weeks with at least one final game.

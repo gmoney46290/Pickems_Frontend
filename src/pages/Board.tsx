@@ -34,8 +34,8 @@ export function BoardPage() {
       if (r.bullseye) hits++;
       live += score(g, pickMap.get(`${g.id}:${pl.id}`), true).total;
     }
-    const dice = boxIndex.dice(week.id, pl.id);
-    return { ats, bonus, hits, dice, total: ats + bonus + dice, live: live + dice };
+    const boxPts = boxIndex.bonus(week.id, pl.id);
+    return { ats, bonus, hits, boxPts, total: ats + bonus + boxPts, live: live + boxIndex.bonus(week.id, pl.id, true) };
   });
   const best = Math.max(...totals.map(t => t.total));
   const anyLive = weekGames.some(g => g.status === 'in');
@@ -82,6 +82,7 @@ export function BoardPage() {
             ...m.tasers.map(() => '⚡'),
             ...m.mines.map(() => '🧨'),
             m.wolf && m.wolf.player_id === pl.id && '🐺',
+            ...m.dawgs.map(() => '🐶'),
           ].filter(Boolean).join('');
           return (
             <td key={pl.id}>
@@ -155,10 +156,10 @@ export function BoardPage() {
                 {totals.map((t, i) => <td key={i}>{t.bonus}</td>)}
               </tr>
             )}
-            {totals.some(t => t.dice) && (
+            {totals.some(t => t.boxPts) && (
               <tr>
-                <td className="game-col">🎲 Dice</td>
-                {totals.map((t, i) => <td key={i}>{t.dice > 0 ? `+${t.dice}` : t.dice || ''}</td>)}
+                <td className="game-col">🎁 Box bonus</td>
+                {totals.map((t, i) => <td key={i}>{t.boxPts > 0 ? `+${t.boxPts}` : t.boxPts || ''}</td>)}
               </tr>
             )}
             <tr>

@@ -81,14 +81,14 @@ export interface Pick {
   score_home: number | null;
 }
 
-export type BoxItem = 'extra_dd' | 'landmine' | 'teaser' | 'lone_wolf' | 'taser' | 'dice';
+export type BoxItem = 'extra_dd' | 'landmine' | 'teaser' | 'lone_wolf' | 'taser' | 'dice' | 'super_dawg';
 
 export interface Box {
   id: number;
   week_id: number;
   player_id: string;
   item: BoxItem;
-  source: 'weekly' | 'score_hit';
+  source: 'weekly' | 'score_hit' | 'gift';
   source_pick_id: number | null;
   opened_at: string | null;
   used_at: string | null;

@@ -8,6 +8,8 @@ export interface ItemMeta {
   /** what you have to choose when playing it */
   needs: 'game' | 'opponent' | 'team' | 'nothing';
   attack?: boolean;
+  /** no longer dealt; kept so old boxes still display */
+  retired?: boolean;
 }
 
 export const ITEMS: Record<BoxItem, ItemMeta> = {
@@ -16,7 +18,8 @@ export const ITEMS: Record<BoxItem, ItemMeta> = {
   teaser: { key: 'teaser', name: 'Teaser', emoji: '🎟️', blurb: 'Move the line 2 points your way on one of your picks.', needs: 'game' },
   lone_wolf: { key: 'lone_wolf', name: 'Lone Wolf', emoji: '🐺', blurb: 'Claim a side on one game. Everyone else is forced onto the other team.', needs: 'team' },
   taser: { key: 'taser', name: 'Taser', emoji: '⚡', blurb: "Make someone else's pick 2 points harder.", needs: 'opponent', attack: true },
-  dice: { key: 'dice', name: 'Dice', emoji: '🎲', blurb: 'Roll for +2, +1, 0, −1 or −2 on your week.', needs: 'nothing' },
+  super_dawg: { key: 'super_dawg', name: 'Super Dawg', emoji: '🐶', blurb: 'Pick a game. If the underdog wins outright (not just covers), you get +1.', needs: 'game' },
+  dice: { key: 'dice', name: 'Dice', emoji: '🎲', blurb: 'Roll for +2, +1, 0, −1 or −2 on your week.', needs: 'nothing', retired: true },
 };
 
 export interface Rules {
@@ -41,17 +44,34 @@ export interface Mods {
   tasers: Box[];
   mines: Box[];
   wolf: Box | null;
+  dawgs: Box[];
 }
 
-export const NO_MODS: Mods = { lineAdj: 0, extraDD: false, landmines: 0, teasers: [], tasers: [], mines: [], wolf: null };
+export const NO_MODS: Mods = { lineAdj: 0, extraDD: false, landmines: 0, teasers: [], tasers: [], mines: [], wolf: null, dawgs: [] };
+
+/** Underdog by our house line; null for a pick'em. */
+export function underdogOf(g: Game): string | null {
+  const s = Number(g.home_spread);
+  return s > 0 ? g.home_team_id : s < 0 ? g.away_team_id : null;
+}
+
+/** Is the underdog winning outright? (final, or right now when live) */
+export function dogWinning(g: Game, live = false): boolean {
+  if (!(g.status === 'final' || (live && g.status === 'in')) || g.away_score == null || g.home_score == null) return false;
+  const dog = underdogOf(g);
+  if (!dog) return false;
+  return dog === g.home_team_id ? g.home_score > g.away_score : g.away_score > g.home_score;
+}
 
 export interface BoxIndex {
   mods: (gameId: number, playerId: string) => Mods;
   wolfOn: (gameId: number) => Box | null;
-  dice: (weekId: number, playerId: string) => number;
+  /** Points from boxes that aren't tied to a pick: old dice rolls + Super Dawg wins. */
+  bonus: (weekId: number, playerId: string, live?: boolean) => number;
 }
 
-export function indexBoxes(boxes: Box[]): BoxIndex {
+export function indexBoxes(boxes: Box[], games: Game[] = []): BoxIndex {
+  const gameById = new Map(games.map(g => [g.id, g]));
   const used = boxes.filter(b => b.used_at);
   const byGame = new Map<number, Box[]>();
   for (const b of used) if (b.target_game_id) byGame.set(b.target_game_id, [...(byGame.get(b.target_game_id) ?? []), b]);
@@ -72,13 +92,23 @@ export function indexBoxes(boxes: Box[]): BoxIndex {
         tasers,
         mines,
         wolf: bs.find(b => b.item === 'lone_wolf') ?? null,
+        dawgs: bs.filter(b => b.item === 'super_dawg' && b.player_id === playerId),
       };
       cache.set(key, m);
       return m;
     },
     wolfOn: gameId => (byGame.get(gameId) ?? []).find(b => b.item === 'lone_wolf') ?? null,
-    dice: (weekId, playerId) =>
-      used.filter(b => b.item === 'dice' && b.week_id === weekId && b.player_id === playerId).reduce((s, b) => s + (b.dice_roll ?? 0), 0),
+    bonus: (weekId, playerId, live = false) =>
+      used
+        .filter(b => b.week_id === weekId && b.player_id === playerId)
+        .reduce((s, b) => {
+          if (b.item === 'dice') return s + (b.dice_roll ?? 0);
+          if (b.item === 'super_dawg') {
+            const g = b.target_game_id ? gameById.get(b.target_game_id) : undefined;
+            return s + (g && dogWinning(g, live) ? 1 : 0);
+          }
+          return s;
+        }, 0),
   };
 }
 

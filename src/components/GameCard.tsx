@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { rulesFor } from '../lib/boxes';
+import { dogWinning, rulesFor, underdogOf } from '../lib/boxes';
 import { useLeague } from '../lib/league';
 import { atsSide, fmtSpread, isLocked, pickedSide, scoreCallHits } from '../lib/scoring';
 import type { Game, Pick, Player, Team } from '../lib/types';
@@ -192,7 +192,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         </span>
       </div>
 
-      {(wolf || (mods && (mods.extraDD || mods.teasers.length || mods.tasers.length || mods.mines.length))) && (
+      {(wolf || (mods && (mods.extraDD || mods.teasers.length || mods.tasers.length || mods.mines.length || mods.dawgs.length))) && (
         <div className="fx-row">
           {wolf && (
             <span className="chip dark">
@@ -203,6 +203,12 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
           {mods?.teasers.map(b => <span key={b.id} className="chip green">🎟️ Teaser +2</span>)}
           {mods?.tasers.map(b => <span key={b.id} className="chip red">⚡ Tased by {nameOf(b.player_id)} −2</span>)}
           {mods?.mines.map(b => <span key={b.id} className="chip red">🧨 Landmine from {nameOf(b.player_id)}</span>)}
+          {mods?.dawgs.map(b => (
+            <span key={b.id} className={`chip ${dogWinning(game) ? 'green' : 'yellow'}`}>
+              🐶 Super Dawg: {underdogOf(game) === home.id ? home.abbr : away.abbr}
+              {dogWinning(game) ? ' +1' : dogWinning(game, true) ? ' (barking 👀)' : ''}
+            </span>
+          ))}
         </div>
       )}
 

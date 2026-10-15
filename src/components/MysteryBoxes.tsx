@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { boxesOpen, ITEMS } from '../lib/boxes';
+import { boxesOpen, dogWinning, ITEMS, underdogOf } from '../lib/boxes';
 import { useLeague } from '../lib/league';
 import { fmtSpread, isLocked } from '../lib/scoring';
 import { supabase } from '../lib/supabase';
@@ -38,6 +38,12 @@ export function MysteryBoxes({ week, actor, weekGames }: { week: Week; actor: Pl
       case 'landmine': return `${it.emoji} ${nameOf(b.player_id)} planted a landmine on ${nameOf(b.target_player_id)}'s ${gameLabel(b.target_game_id)} pick`;
       case 'teaser': return `${it.emoji} ${nameOf(b.player_id)} teased ${gameLabel(b.target_game_id)} 2 points their way`;
       case 'extra_dd': return `${it.emoji} ${nameOf(b.player_id)} doubled down again on ${gameLabel(b.target_game_id)}`;
+      case 'super_dawg': {
+        const g = weekGames.find(x => x.id === b.target_game_id);
+        const dog = g ? teams.get(underdogOf(g) ?? '')?.abbr : '?';
+        const paid = g && g.status === 'final' ? (dogWinning(g) ? ' — WOOF! +1 🎉' : ' — no upset') : '';
+        return `${it.emoji} ${nameOf(b.player_id)} is riding the Super Dawg: ${dog} (${gameLabel(b.target_game_id)})${paid}`;
+      }
       case 'lone_wolf': return `${it.emoji} ${nameOf(b.player_id)} went Lone Wolf on ${teams.get(b.target_team_id ?? '')?.abbr} (${gameLabel(b.target_game_id)})`;
     }
   };
@@ -90,7 +96,8 @@ export function MysteryBoxes({ week, actor, weekGames }: { week: Week; actor: Pl
           {mine.length === 0 && <div className="muted">No boxes yet. The commish deals them when the week opens.</div>}
           {mine.map(b => {
             const it = ITEMS[b.item];
-            const bonus = b.source === 'score_hit' ? <span className="chip yellow">🎯 bonus</span> : null;
+            const bonus =
+              b.source === 'score_hit' ? <span className="chip yellow">🎯 bonus</span> : b.source === 'gift' ? <span className="chip pink">🎁 gift</span> : null;
             if (!b.opened_at && !b.used_at) {
               return (
                 <button key={b.id} className={`mystery ${opening === b.id ? 'shake' : ''}`} onClick={() => openBox(b)} disabled={opening != null}>
@@ -177,6 +184,12 @@ function UseForm({
     const a = teams.get(x.away_team_id), h = teams.get(x.home_team_id);
     const mp = myPickOn(x.id);
     const mine = mp?.pick_team_id ? ` · you: ${teams.get(mp.pick_team_id)?.abbr}` : '';
+    if (box.item === 'super_dawg') {
+      const dog = underdogOf(x);
+      if (!dog) return `${a?.abbr} @ ${h?.abbr} (pick'em, no dog)`;
+      const t = teams.get(dog);
+      return `🐶 ${t?.abbr} (+${Math.abs(Number(x.home_spread))}) in ${a?.abbr} @ ${h?.abbr}`;
+    }
     return `${a?.abbr} @ ${h?.abbr} (${h?.abbr} ${fmtSpread(Number(x.home_spread))})${mine}`;
   };
   const go = async (args: { game?: number; target?: string; team?: string }) => {
