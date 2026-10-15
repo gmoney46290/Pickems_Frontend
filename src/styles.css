@@ -492,3 +492,24 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
   .party-grid .grid-line { font-size: 13px; }
   .party-grid td.game-col .chip { font-size: 10px; padding: 1px 5px; white-space: normal; }
 }
+
+.fx-row { display: flex; flex-wrap: wrap; gap: 4px; }
+
+/* ------------------------------------------------------------------ mystery boxes */
+
+.boxes-panel { margin-bottom: 12px; background: linear-gradient(135deg, #f3ecff, var(--paper)); }
+.box-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.mystery {
+  display: grid; justify-items: center; gap: 4px; padding: 14px;
+  border: var(--line); border-radius: var(--radius); box-shadow: var(--shadow);
+  background: repeating-linear-gradient(45deg, var(--purple), var(--purple) 12px, #9d72ff 12px, #9d72ff 24px);
+  color: white; transition: transform 0.1s;
+}
+.mystery:hover:not(:disabled) { transform: rotate(-2deg) scale(1.03); }
+.mystery-emoji { font-size: 44px; filter: drop-shadow(2px 3px 0 rgba(0,0,0,.3)); }
+.mystery.shake { animation: shake 0.15s infinite; }
+@keyframes shake { 0% { transform: rotate(-6deg); } 50% { transform: rotate(6deg) scale(1.05); } 100% { transform: rotate(-6deg); } }
+.box-card { display: grid; gap: 6px; padding: 10px 12px; border: var(--line); border-radius: var(--radius); background: white; box-shadow: var(--shadow-sm); align-content: start; }
+.box-card.used { background: #f4f1fa; box-shadow: none; }
+.box-title { font-family: var(--display); font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.box-log { margin-top: 10px; display: grid; gap: 4px; font-size: 13px; font-weight: 700; border-top: 2px dashed var(--ink); padding-top: 8px; }

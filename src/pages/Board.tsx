@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
-import { atsResult, fmtSpread, pickPoints, scoreCallHits } from '../lib/scoring';
+import { rulesFor } from '../lib/boxes';
+import { atsResult, fmtSpread } from '../lib/scoring';
 import type { Game, League } from '../lib/types';
 
 export function BoardPage() {
-  const { weeks, games, picks, players, teams, me } = useLeague();
+  const { weeks, games, picks, players, teams, me, score, boxIndex } = useLeague();
   const visibleWeeks = weeks.filter(w => w.status !== 'draft' || me?.is_admin);
   const [weekId, setWeekId] = useState<number | null>(null);
   useEffect(() => {
@@ -23,15 +24,18 @@ export function BoardPage() {
 
   if (!week) return <div className="card empty"><div className="big">📋</div><p>Nothing on the board yet.</p></div>;
 
+  const rules = rulesFor(week);
   const totals = players.map(pl => {
-    let ats = 0, bonus = 0, live = 0;
+    let ats = 0, bonus = 0, live = 0, hits = 0;
     for (const g of weekGames) {
-      const r = pickPoints(g, pickMap.get(`${g.id}:${pl.id}`));
+      const r = score(g, pickMap.get(`${g.id}:${pl.id}`));
       ats += r.ats;
       bonus += r.score;
-      live += pickPoints(g, pickMap.get(`${g.id}:${pl.id}`), true).total;
+      if (r.bullseye) hits++;
+      live += score(g, pickMap.get(`${g.id}:${pl.id}`), true).total;
     }
-    return { ats, bonus, total: ats + bonus, live };
+    const dice = boxIndex.dice(week.id, pl.id);
+    return { ats, bonus, hits, dice, total: ats + bonus + dice, live: live + dice };
   });
   const best = Math.max(...totals.map(t => t.total));
   const anyLive = weekGames.some(g => g.status === 'in');
@@ -68,15 +72,24 @@ export function BoardPage() {
           const p = gp[i];
           if (!p?.pick_team_id) return <td key={pl.id} className="muted">—</td>;
           const t = teams.get(p.pick_team_id);
-          const r = pickPoints(g, p, true);
+          const r = score(g, p, true);
           const cls = g.status === 'final' ? r.outcome : g.status === 'in' ? (r.outcome === 'win' ? 'live-win' : r.outcome === 'loss' ? 'live-loss' : '') : '';
-          const hit = g.status === 'final' && scoreCallHits(g, p);
+          const hit = g.status === 'final' && r.bullseye;
+          const m = boxIndex.mods(g.id, pl.id);
+          const fx = [
+            m.extraDD && '🔥',
+            ...m.teasers.map(() => '🎟️'),
+            ...m.tasers.map(() => '⚡'),
+            ...m.mines.map(() => '🧨'),
+            m.wolf && m.wolf.player_id === pl.id && '🐺',
+          ].filter(Boolean).join('');
           return (
             <td key={pl.id}>
-              <span className={`cell ${cls} ${p.is_dd ? 'dd' : ''} ${hit ? 'hit' : ''}`}>
+              <span className={`cell ${cls} ${r.dd ? 'dd' : ''} ${hit ? 'hit' : ''}`} title={m.lineAdj ? `Line moved ${m.lineAdj > 0 ? '+' : ''}${m.lineAdj} by boxes` : undefined}>
                 {t?.logo && <img src={t.logo} alt="" />}
                 {t?.abbr}
                 {p.is_dd && '🔥'}
+                {fx}
                 {p.score_away != null && <span className="sc">{p.score_away}-{p.score_home}</span>}
               </span>
             </td>
@@ -131,10 +144,23 @@ export function BoardPage() {
               <td className="game-col">Picks</td>
               {totals.map((t, i) => <td key={i}>{t.ats}</td>)}
             </tr>
-            <tr>
-              <td className="game-col">🎯 Bonus</td>
-              {totals.map((t, i) => <td key={i}>{t.bonus}</td>)}
-            </tr>
+            {rules.boxes ? (
+              <tr>
+                <td className="game-col">🎯 Hits → 🎁</td>
+                {totals.map((t, i) => <td key={i}>{t.hits}</td>)}
+              </tr>
+            ) : (
+              <tr>
+                <td className="game-col">🎯 Bonus</td>
+                {totals.map((t, i) => <td key={i}>{t.bonus}</td>)}
+              </tr>
+            )}
+            {totals.some(t => t.dice) && (
+              <tr>
+                <td className="game-col">🎲 Dice</td>
+                {totals.map((t, i) => <td key={i}>{t.dice > 0 ? `+${t.dice}` : t.dice || ''}</td>)}
+              </tr>
+            )}
             <tr>
               <td className="game-col">Total</td>
               {totals.map((t, i) => (

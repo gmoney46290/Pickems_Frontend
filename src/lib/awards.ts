@@ -1,4 +1,5 @@
 import { atsSide, pickedSide, pickPoints } from './scoring';
+import type { Scorer } from './standings';
 import type { Game, Pick, Player } from './types';
 
 export interface Award {
@@ -11,7 +12,7 @@ export interface Award {
  * Silly superlatives over the final games in `weekIds`. With `weekly` the copy talks about
  * "this week"; otherwise it's season-flavored (best/worst single week, streaks).
  */
-export function computeAwards(players: Player[], games: Game[], picks: Pick[], weekIds: Set<number>, weekly: boolean): Award[] {
+export function computeAwards(players: Player[], games: Game[], picks: Pick[], weekIds: Set<number>, weekly: boolean, score: Scorer = (g, p, live) => pickPoints(g, p, live)): Award[] {
   const final = games.filter(g => g.status === 'final' && weekIds.has(g.week_id)).sort((a, b) => a.kickoff.localeCompare(b.kickoff));
   if (!final.length || !players.length) return [];
   const gameIds = new Set(final.map(g => g.id));
@@ -41,7 +42,7 @@ export function computeAwards(players: Player[], games: Game[], picks: Pick[], w
     for (const p of ps) {
       const s = t.get(p.player_id);
       if (!s) continue;
-      const r = pickPoints(g, p);
+      const r = score(g, p);
       const side = pickedSide(g, p);
       s.pts += r.total;
       s.byWeek.set(g.week_id, (s.byWeek.get(g.week_id) ?? 0) + r.total);
@@ -53,14 +54,14 @@ export function computeAwards(players: Player[], games: Game[], picks: Pick[], w
       if (r.outcome === 'win') {
         s.wins++;
         if (g.league === 'cfb') s.cfbW++; else s.nflW++;
-        if (p.is_dd) s.ddW++;
+        if (r.dd) s.ddW++;
         if (favSide && side !== favSide) s.dogWins++;
         if (ps.length > 2 && ps.filter(x => x.pick_team_id === p.pick_team_id).length === 1) s.lone++;
         s.streak++;
         s.best = Math.max(s.best, s.streak);
       } else if (r.outcome === 'loss') {
         s.losses++;
-        if (p.is_dd) s.ddL++;
+        if (r.dd) s.ddL++;
         if (Math.abs(margin) <= 1.5) s.badBeats++;
         s.streak = 0;
       }

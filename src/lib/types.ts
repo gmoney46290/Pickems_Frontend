@@ -34,6 +34,7 @@ export interface Week {
   score_picks: number;
   dd_per_league: number;
   locks_at: string | null;
+  ruleset: 'classic' | 'boxes';
 }
 
 export interface Phase {
@@ -78,4 +79,21 @@ export interface Pick {
   is_dd: boolean;
   score_away: number | null;
   score_home: number | null;
+}
+
+export type BoxItem = 'extra_dd' | 'landmine' | 'teaser' | 'lone_wolf' | 'taser' | 'dice';
+
+export interface Box {
+  id: number;
+  week_id: number;
+  player_id: string;
+  item: BoxItem;
+  source: 'weekly' | 'score_hit';
+  source_pick_id: number | null;
+  opened_at: string | null;
+  used_at: string | null;
+  target_game_id: number | null;
+  target_player_id: string | null;
+  target_team_id: string | null;
+  dice_roll: number | null;
 }

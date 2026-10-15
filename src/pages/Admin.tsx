@@ -65,6 +65,18 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
     toast(status === 'open' ? `${weekTitle(w)} is open for picks! 📣` : `${weekTitle(w)} → ${status}`);
     reload();
   };
+  const setRules = async (w: Week, ruleset: Week['ruleset']) => {
+    const { error } = await supabase.from('weeks').update({ ruleset }).eq('id', w.id);
+    if (error) return toast(error.message, true);
+    toast(`${weekTitle(w)} → ${ruleset === 'boxes' ? '🎁 mystery box rules' : 'classic rules'}`);
+    reload();
+  };
+  const deal = async (w: Week) => {
+    const { data, error } = await supabase.rpc('deal_boxes', { p_week: w.id });
+    if (error) return toast(error.message, true);
+    toast(data ? `🎁 Dealt ${data} box${data === 1 ? '' : 'es'} for ${weekTitle(w)}` : 'Everyone already has their boxes');
+    reload();
+  };
   const setLock = async (w: Week, locks_at: string | null) => {
     const { error } = await supabase.from('weeks').update({ locks_at }).eq('id', w.id);
     if (error) return toast(error.message, true);
@@ -97,6 +109,7 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
             <th className="hide-sm">NFL / CFB wk</th>
             <th>Games</th>
             <th>Status</th>
+            <th>Rules</th>
             <th>Picks lock</th>
             <th />
           </tr>
@@ -115,6 +128,19 @@ function WeeksList({ onEdit }: { onEdit: (id: number | 'new') => void }) {
                     <option value="open">📣 open</option>
                     <option value="final">📦 final</option>
                   </select>
+                </td>
+                <td>
+                  <div className="row">
+                    <select className="input" value={w.ruleset ?? 'classic'} onChange={e => setRules(w, e.target.value as Week['ruleset'])}>
+                      <option value="classic">Classic</option>
+                      <option value="boxes">🎁 Boxes</option>
+                    </select>
+                    {w.ruleset === 'boxes' && (
+                      <button className="btn small" title="Deal 1 box each + bonus boxes for last week's score hits. Safe to press again." onClick={() => deal(w)}>
+                        🎁 Deal
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td>
                   {weekLocked(w) ? (
@@ -248,7 +274,9 @@ function WeekEditor({ weekId, onDone }: { weekId: number | null; onDone: () => v
         ({ error } = await supabase.from('weeks').update(weekRow).eq('id', wid));
         if (error) throw error;
       } else {
-        const r = await supabase.from('weeks').insert({ ...weekRow, status: 'draft' }).select().single();
+        // new weeks inherit the latest week's rules (Q2+ = mystery boxes)
+        const ruleset = [...weeks].sort((x, y) => y.season - x.season || y.number - x.number)[0]?.ruleset ?? 'classic';
+        const r = await supabase.from('weeks').insert({ ...weekRow, status: 'draft', ...(ruleset === 'boxes' ? { ruleset } : {}) }).select().single();
         if (r.error) throw r.error;
         wid = r.data.id;
       }

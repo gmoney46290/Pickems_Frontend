@@ -1,3 +1,4 @@
+import { CLASSIC, NO_MODS, type Mods, type Rules } from './boxes';
 import type { Game, Pick } from './types';
 
 export type AtsSide = 'home' | 'away' | 'push';
@@ -23,14 +24,15 @@ export function pickedSide(g: Game, p: Pick | undefined): 'home' | 'away' | null
   return p.pick_team_id === g.home_team_id ? 'home' : p.pick_team_id === g.away_team_id ? 'away' : null;
 }
 
-function atsPointsFor(side: AtsSide | null, picked: 'home' | 'away' | null, dd: boolean) {
-  if (!side || !picked || side === 'push') return 0;
-  return side === picked ? (dd ? 2 : 1) : dd ? -1 : 0;
+export function scoreCallHits(g: Game, p: Pick | undefined, away = g.away_score, home = g.home_score, tolerance = 2) {
+  if (!p || p.score_away == null || p.score_home == null || away == null || home == null) return false;
+  return Math.abs(p.score_away - away) <= tolerance && Math.abs(p.score_home - home) <= tolerance;
 }
 
-export function scoreCallHits(g: Game, p: Pick | undefined, away = g.away_score, home = g.home_score) {
-  if (!p || p.score_away == null || p.score_home == null || away == null || home == null) return false;
-  return Math.abs(p.score_away - away) <= 2 && Math.abs(p.score_home - home) <= 2;
+/** Rules for the week plus box effects on this pick. Omit for classic scoring. */
+export interface ScoreCtx {
+  rules?: Rules;
+  mods?: Mods;
 }
 
 export interface PickPoints {
@@ -40,18 +42,35 @@ export interface PickPoints {
   /** 'win' | 'loss' | 'push' | 'pending' | 'none' */
   outcome: 'win' | 'loss' | 'push' | 'pending' | 'none';
   bullseye: boolean;
+  /** double down in effect (regular or Extra Double Down box) */
+  dd: boolean;
 }
 
-/** Points earned by a pick. With live=true, scores in-progress games as if they ended now. */
-export function pickPoints(g: Game, p: Pick | undefined, live = false): PickPoints {
+/**
+ * Points earned by a pick. With live=true, scores in-progress games as if they ended now.
+ * Box effects: teasers/tasers move the picker's line, Extra Double Down makes it a DD,
+ * each landmine costs one more point on a loss.
+ */
+export function pickPoints(g: Game, p: Pick | undefined, live = false, ctx: ScoreCtx = {}): PickPoints {
+  const rules = ctx.rules ?? CLASSIC;
+  const mods = ctx.mods ?? NO_MODS;
   const picked = pickedSide(g, p);
+  const dd = !!p?.is_dd || mods.extraDD;
   const counts = g.status === 'final' || (live && g.status === 'in');
-  const side = counts && hasScore(g) ? atsSide(g, g.away_score!, g.home_score!) : null;
-  const ats = atsPointsFor(side, picked, !!p?.is_dd);
-  const bullseye = counts && scoreCallHits(g, p);
-  const score = bullseye ? 3 : 0;
-  const outcome = !picked ? 'none' : !side ? 'pending' : side === 'push' ? 'push' : side === picked ? 'win' : 'loss';
-  return { ats, score, total: ats + score, outcome, bullseye };
+  let outcome: PickPoints['outcome'] = 'none';
+  if (picked) {
+    if (!counts || !hasScore(g)) outcome = 'pending';
+    else {
+      // margin from the picked team's side of the line, after teasers/tasers
+      const homeMargin = g.home_score! - g.away_score! + Number(g.home_spread);
+      const m = (picked === 'home' ? homeMargin : -homeMargin) + mods.lineAdj;
+      outcome = m > 0 ? 'win' : m < 0 ? 'loss' : 'push';
+    }
+  }
+  const ats = outcome === 'win' ? (dd ? 2 : 1) : outcome === 'loss' ? (dd ? -1 : 0) - mods.landmines : 0;
+  const bullseye = counts && scoreCallHits(g, p, g.away_score, g.home_score, rules.scoreTolerance);
+  const score = bullseye ? rules.scorePoints : 0;
+  return { ats, score, total: ats + score, outcome, bullseye, dd };
 }
 
 export function weekLocked(w: { locks_at: string | null } | undefined | null, now = Date.now()) {

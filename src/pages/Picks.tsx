@@ -2,9 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Avatar } from '../components/Avatar';
 import { GameCard, type CardLimits } from '../components/GameCard';
+import { MysteryBoxes } from '../components/MysteryBoxes';
 import { defaultWeek, weekTitle, WeekTabs } from '../components/WeekTabs';
 import { useLeague } from '../lib/league';
-import { isLocked, pickPoints, weekLocked } from '../lib/scoring';
+import { isLocked, weekLocked } from '../lib/scoring';
 import { buildStandings, ordinal, ranks } from '../lib/standings';
 import type { Game, League } from '../lib/types';
 
@@ -14,7 +15,7 @@ const LEAGUE_META: Record<League, { title: string; emoji: string }> = {
 };
 
 export function PicksPage() {
-  const { weeks, games, picks, players, teams, me, savePick, session } = useLeague();
+  const { weeks, games, picks, players, teams, me, savePick, session, score, boxIndex } = useLeague();
   const [params, setParams] = useSearchParams();
   const visibleWeeks = weeks.filter(w => w.status !== 'draft' || me?.is_admin);
   const [weekId, setWeekId] = useState<number | null>(() => Number(params.get('week')) || null);
@@ -57,9 +58,9 @@ export function PicksPage() {
   const scoreCalls = mine.filter(p => p?.score_away != null).length;
   const ddFor = (lg: League) => weekGames.find(g => g.league === lg && myPicks.get(g.id)?.is_dd);
   const hasLeague = (lg: League) => weekGames.some(g => g.league === lg);
-  const myPts = weekGames.reduce((s, g) => s + pickPoints(g, myPicks.get(g.id), true).total, 0);
+  const myPts = weekGames.reduce((s, g) => s + score(g, myPicks.get(g.id), true).total, 0) + (actor ? boxIndex.dice(week.id, actor.id) : 0);
 
-  const standings = buildStandings(players, games, picks, new Set([week.id]));
+  const standings = buildStandings(players, games, picks, new Set([week.id]), score, boxIndex.dice);
   const liveSorted = [...standings].sort((a, b) => b.live - a.live);
   const r = ranks(liveSorted.map(l => ({ ...l, total: l.live })));
   const myRank = actor ? r[liveSorted.findIndex(l => l.player.id === actor.id)] : null;
@@ -132,7 +133,9 @@ export function PicksPage() {
               <span className={`check ${pickedCount === weekGames.length ? 'done' : 'todo'}`}>
                 {pickedCount === weekGames.length ? '✅' : '📝'} {pickedCount}/{weekGames.length} picked
               </span>
-              {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
+              {week.ruleset === 'boxes' && <MysteryBoxes week={week} actor={actor} weekGames={weekGames} />}
+
+      {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
                 <span key={lg} className={`check ${ddFor(lg) ? 'done' : 'todo'}`}>
                   🔥 {LEAGUE_META[lg].title} DD {ddFor(lg) ? '✓' : '—'}
                 </span>

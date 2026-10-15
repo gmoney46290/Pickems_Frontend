@@ -1,4 +1,4 @@
-import { pickPoints } from './scoring';
+import { pickPoints, type PickPoints } from './scoring';
 import type { Game, Pick, Player } from './types';
 
 export interface Line {
@@ -17,33 +17,56 @@ export interface Line {
   byWeek: Map<number, number>;
   weeksWon: number;
   live: number; // points including in-progress games
+  dice: number; // net mystery-box dice rolls
 }
 
-export function buildStandings(players: Player[], games: Game[], picks: Pick[], weekIds: Set<number> | null): Line[] {
+export type Scorer = (g: Game, p: Pick | undefined, live?: boolean) => PickPoints;
+const classic: Scorer = (g, p, live) => pickPoints(g, p, live);
+
+export function buildStandings(
+  players: Player[],
+  games: Game[],
+  picks: Pick[],
+  weekIds: Set<number> | null,
+  score: Scorer = classic,
+  /** dice roll total for a player in a week */
+  dice: (weekId: number, playerId: string) => number = () => 0,
+): Line[] {
   const gameById = new Map(games.map(g => [g.id, g]));
   const lines = new Map<string, Line>(
     players.map(p => [
       p.id,
-      { player: p, total: 0, ats: 0, bonus: 0, wins: 0, losses: 0, pushes: 0, ddWins: 0, ddLosses: 0, bullseyes: 0, scoreCalls: 0, byWeek: new Map(), weeksWon: 0, live: 0 },
+      { player: p, total: 0, ats: 0, bonus: 0, wins: 0, losses: 0, pushes: 0, ddWins: 0, ddLosses: 0, bullseyes: 0, scoreCalls: 0, byWeek: new Map(), weeksWon: 0, live: 0, dice: 0 },
     ]),
   );
   for (const pk of picks) {
     const g = gameById.get(pk.game_id);
     const l = lines.get(pk.player_id);
     if (!g || !l || (weekIds && !weekIds.has(g.week_id))) continue;
-    const r = pickPoints(g, pk);
-    l.live += pickPoints(g, pk, true).total;
+    const r = score(g, pk);
+    l.live += score(g, pk, true).total;
     if (pk.score_away != null) l.scoreCalls++;
     if (r.outcome === 'pending' || r.outcome === 'none') continue;
     l.total += r.total;
     l.ats += r.ats;
     l.bonus += r.score;
     if (r.bullseye) l.bullseyes++;
-    if (r.outcome === 'win') { l.wins++; if (pk.is_dd) l.ddWins++; }
-    if (r.outcome === 'loss') { l.losses++; if (pk.is_dd) l.ddLosses++; }
+    if (r.outcome === 'win') { l.wins++; if (r.dd) l.ddWins++; }
+    if (r.outcome === 'loss') { l.losses++; if (r.dd) l.ddLosses++; }
     if (r.outcome === 'push') l.pushes++;
     l.byWeek.set(g.week_id, (l.byWeek.get(g.week_id) ?? 0) + r.total);
   }
+  // Dice rolls count toward the week they were rolled in.
+  const weekIdsSeen = new Set(games.filter(g => !weekIds || weekIds.has(g.week_id)).map(g => g.week_id));
+  for (const l of lines.values())
+    for (const w of weekIdsSeen) {
+      const d = dice(w, l.player.id);
+      if (!d) continue;
+      l.dice += d;
+      l.total += d;
+      l.live += d;
+      l.byWeek.set(w, (l.byWeek.get(w) ?? 0) + d);
+    }
   // Weekly winners (ties share the crown) — only for weeks with at least one final game.
   const weeks = new Set(games.filter(g => g.status === 'final' && (!weekIds || weekIds.has(g.week_id))).map(g => g.week_id));
   for (const w of weeks) {

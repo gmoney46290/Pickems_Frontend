@@ -21,7 +21,7 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 const MEDALS = ['🥇', '🥈', '🥉'];
 
 export function StandingsPage() {
-  const { players, games, picks, weeks, phases, phaseWeeks, teams } = useLeague();
+  const { players, games, picks, weeks, phases, phaseWeeks, teams, score, boxIndex } = useLeague();
   const [scope, setScope] = useState<'season' | number>('season');
 
   const scopedWeeks = useMemo(() => {
@@ -31,7 +31,7 @@ export function StandingsPage() {
     return visible.filter(w => ids.has(w.id));
   }, [scope, weeks, phaseWeeks]);
   const weekIds = useMemo(() => new Set(scopedWeeks.map(w => w.id)), [scopedWeeks]);
-  const lines = useMemo(() => buildStandings(players, games, picks, weekIds), [players, games, picks, weekIds]);
+  const lines = useMemo(() => buildStandings(players, games, picks, weekIds, score, boxIndex.dice), [players, games, picks, weekIds, score, boxIndex]);
   const r = ranks(lines);
   const playedWeeks = scopedWeeks.filter(w => games.some(g => g.week_id === w.id && g.status === 'final'));
 
@@ -39,7 +39,7 @@ export function StandingsPage() {
   const [awardWeek, setAwardWeek] = useState<number | 'all' | null>(null);
   const awardScope = awardWeek === 'all' ? 'all' : playedWeeks.some(w => w.id === awardWeek) ? awardWeek : playedWeeks.at(-1)?.id ?? 'all';
   const awardIds = useMemo(() => (awardScope === 'all' ? weekIds : new Set([awardScope as number])), [awardScope, weekIds]);
-  const awards = useMemo(() => computeAwards(players, games, picks, awardIds, awardScope !== 'all'), [players, games, picks, awardIds, awardScope]);
+  const awards = useMemo(() => computeAwards(players, games, picks, awardIds, awardScope !== 'all', score), [players, games, picks, awardIds, awardScope, score]);
   const burned = useMemo(() => groupL(games, picks, awardIds), [games, picks, awardIds]);
 
   if (!players.length) return <div className="card empty"><div className="big">🏆</div><p>No players yet.</p></div>;
@@ -72,6 +72,7 @@ export function StandingsPage() {
                   <span className="chip">ATS {record} ({pct}%)</span>
                   <span className="chip">🔥 {l.ddWins}-{l.ddLosses}</span>
                   <span className="chip">🎯 {l.bullseyes}/{l.scoreCalls}</span>
+                  {l.dice !== 0 && <span className="chip">🎲 {l.dice > 0 ? '+' : ''}{l.dice}</span>}
                   {last && <span className="chip pink">toilet bowl 🚽</span>}
                 </div>
               </div>

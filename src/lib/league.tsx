@@ -1,7 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { fetchAll, supabase, supabaseConfigured } from './supabase';
-import type { Game, Phase, Pick, Player, Team, Week } from './types';
+import { indexBoxes, rulesFor, type BoxIndex } from './boxes';
+import { pickPoints, type PickPoints } from './scoring';
+import type { Box, Game, Phase, Pick, Player, Team, Week } from './types';
 
 interface LeagueState {
   ready: boolean;
@@ -15,7 +17,12 @@ interface LeagueState {
   phaseWeeks: { phase_id: number; week_id: number }[];
   games: Game[];
   picks: Pick[];
+  boxes: Box[];
+  boxIndex: BoxIndex;
+  /** Grade a pick with its week's rules and any mystery-box effects. */
+  score: (g: Game, p: Pick | undefined, live?: boolean) => PickPoints;
   reload: () => Promise<void>;
+  reloadBoxes: () => Promise<void>;
   /** Upsert (or clear) a pick. Defaults to me; admins may pass any player. Throws a friendly message on failure. */
   savePick: (gameId: number, patch: Partial<Pick>, playerId?: string) => Promise<void>;
   upsertLocalGame: (g: Game) => void;
@@ -40,6 +47,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [phaseWeeks, setPhaseWeeks] = useState<{ phase_id: number; week_id: number }[]>([]);
   const [games, setGames] = useState<Game[]>([]);
   const [picks, setPicks] = useState<Pick[]>([]);
+  const [boxes, setBoxes] = useState<Box[]>([]);
   const picksRef = useRef(picks);
   picksRef.current = picks;
 
@@ -50,6 +58,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const loadPicks = useCallback(async () => setPicks(await fetchAll<Pick>('picks')), []);
+  // Boxes only exist once the Q2 migration has run; missing table = no boxes.
+  const loadBoxes = useCallback(async () => setBoxes(await fetchAll<Box>('boxes').catch(() => [])), []);
 
   const reload = useCallback(async () => {
     if (!supabaseConfigured) {
@@ -67,6 +77,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         fetchAll<Game>('games'),
         fetchAll<Pick>('picks'),
       ]);
+      await loadBoxes();
       setPlayers(p);
       setTeamList(t);
       setWeeks(w.sort((a, b) => a.season - b.season || a.number - b.number));
@@ -80,7 +91,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     } finally {
       setReady(true);
     }
-  }, []);
+  }, [loadBoxes]);
 
   // Reload whenever the logged-in user changes (visibility of drafts/picks depends on it).
   useEffect(() => {
@@ -103,6 +114,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
           return prev ? gs.map(x => (x.id === g.id ? g : x)) : [...gs, g];
         });
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'boxes' }, () => loadBoxes())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'picks' }, payload => {
         if (payload.eventType === 'DELETE') {
           setPicks(ps => ps.filter(p => p.id !== (payload.old as Pick).id));
@@ -118,10 +130,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
       supabase.removeChannel(ch);
       clearInterval(t);
     };
-  }, [loadPicks]);
+  }, [loadPicks, loadBoxes]);
 
   const me = useMemo(() => players.find(p => p.user_id && p.user_id === session?.user.id) ?? null, [players, session]);
   const teams = useMemo(() => new Map(teamList.map(t => [t.id, t])), [teamList]);
+  const boxIndex = useMemo(() => indexBoxes(boxes), [boxes]);
+  const weekById = useMemo(() => new Map(weeks.map(w => [w.id, w])), [weeks]);
+  const score = useCallback(
+    (g: Game, p: Pick | undefined, live = false) =>
+      pickPoints(g, p, live, { rules: rulesFor(weekById.get(g.week_id)), mods: p ? boxIndex.mods(g.id, p.player_id) : undefined }),
+    [boxIndex, weekById],
+  );
 
   const savePick = useCallback(
     async (gameId: number, patch: Partial<Pick>, playerId?: string) => {
@@ -172,7 +191,11 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     phaseWeeks,
     games,
     picks,
+    boxes,
+    boxIndex,
+    score,
     reload,
+    reloadBoxes: loadBoxes,
     savePick,
     upsertLocalGame,
   };

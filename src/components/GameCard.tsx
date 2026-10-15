@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { atsSide, fmtSpread, isLocked, pickPoints, pickedSide, scoreCallHits } from '../lib/scoring';
+import { rulesFor } from '../lib/boxes';
+import { useLeague } from '../lib/league';
+import { atsSide, fmtSpread, isLocked, pickedSide, scoreCallHits } from '../lib/scoring';
 import type { Game, Pick, Player, Team } from '../lib/types';
 import { LineShop } from './LineShop';
 import { useToast } from './Toast';
@@ -40,6 +42,8 @@ function kickoffLabel(iso: string) {
 
 export function GameCard({ game, away, home, me, myPick, picks, players, limits, onSave, onMoveDD, weekLocksAt }: Props) {
   const toast = useToast();
+  const { score, boxIndex, weeks } = useLeague();
+  const rules = rulesFor(weeks.find(w => w.id === game.week_id));
   const [showLines, setShowLines] = useState(false);
   const [editingScore, setEditingScore] = useState(false);
   const [sa, setSa] = useState<string>('');
@@ -58,7 +62,13 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
   const final = game.status === 'final';
   const hasScore = game.away_score != null && game.home_score != null && (live || final);
   const covering = hasScore ? atsSide(game, game.away_score!, game.home_score!) : null;
-  const pts = pickPoints(game, myPick, true);
+  const pts = score(game, myPick, true);
+  // Mystery-box effects on the shown player's pick, plus any Lone Wolf on this game
+  const ownerId = myPick?.player_id ?? me?.id;
+  const mods = ownerId ? boxIndex.mods(game.id, ownerId) : null;
+  const wolf = boxIndex.wolfOn(game.id);
+  const nameOf = (id: string | null) => players.find(p => p.id === id)?.name ?? '?';
+  const hitNow = (p: Pick | undefined) => scoreCallHits(game, p, game.away_score, game.home_score, rules.scoreTolerance);
   const myCall = myPick?.score_away != null;
   const tweaked = game.market_spread != null && Number(game.market_spread) !== Number(game.home_spread);
   const canEdit = !!me && !locked;
@@ -139,7 +149,10 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         </span>
         {record && <span className="team-record">{record}</span>}
         {hasScore ? <span className="team-score">{score}</span> : null}
-        <span className="team-spread">{fmtSpread(spread)}</span>
+        <span className="team-spread">
+          {fmtSpread(spread)}
+          {isPicked && mods?.lineAdj ? <> → {fmtSpread(spread + mods.lineAdj)}</> : null}
+        </span>
         {(live || final) && covering === side && <span className="covering-tag">{final ? 'covered ✓' : 'covering'}</span>}
       </button>
     );
@@ -179,6 +192,20 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
         </span>
       </div>
 
+      {(wolf || (mods && (mods.extraDD || mods.teasers.length || mods.tasers.length || mods.mines.length))) && (
+        <div className="fx-row">
+          {wolf && (
+            <span className="chip dark">
+              🐺 {nameOf(wolf.player_id)} went Lone Wolf on {wolf.target_team_id === home.id ? home.abbr : away.abbr}
+            </span>
+          )}
+          {mods?.extraDD && <span className="chip" style={{ background: 'var(--orange)', color: 'white' }}>🔥 Extra double down</span>}
+          {mods?.teasers.map(b => <span key={b.id} className="chip green">🎟️ Teaser +2</span>)}
+          {mods?.tasers.map(b => <span key={b.id} className="chip red">⚡ Tased by {nameOf(b.player_id)} −2</span>)}
+          {mods?.mines.map(b => <span key={b.id} className="chip red">🧨 Landmine from {nameOf(b.player_id)}</span>)}
+        </div>
+      )}
+
       <div className="matchup">
         {teamBtn('away')}
         <span className="at">@</span>
@@ -205,11 +232,13 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
           <button className="btn small" onClick={() => setEditingScore(false)}>✕</button>
         </div>
       ) : myCall ? (
-        <div className="score-call" style={scoreCallHits(game, myPick) && hasScore ? { background: 'var(--yellow)', borderStyle: 'solid' } : undefined}>
+        <div className="score-call" style={hitNow(myPick) && hasScore ? { background: 'var(--yellow)', borderStyle: 'solid' } : undefined}>
           <span className="lbl">
             🎯 My call: {away.abbr} {myPick!.score_away} – {home.abbr} {myPick!.score_home}
           </span>
-          {hasScore && scoreCallHits(game, myPick) && <span className="chip pink">{final ? 'BULLSEYE +3' : 'on pace 👀'}</span>}
+          {hasScore && hitNow(myPick) && (
+            <span className="chip pink">{final ? (rules.boxes ? 'HIT! 🎁 next week' : 'BULLSEYE +3') : 'on pace 👀'}</span>
+          )}
           {canEdit && <button className="btn small" style={{ marginLeft: 'auto' }} onClick={openScore}>Edit</button>}
         </div>
       ) : null}
@@ -240,7 +269,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
           {[away, home].map(t => (
             <div key={t.id}>
               {whoFor(t.id).map(({ p, pl }) => {
-                const hit = hasScore && scoreCallHits(game, p);
+                const hit = hasScore && hitNow(p);
                 return (
                   <span key={p.id} className={`who ${p.is_dd ? 'dd' : ''} ${hit ? 'hit' : ''}`} title={pl!.name}>
                     {pl!.emoji} {pl!.name}
