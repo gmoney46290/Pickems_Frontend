@@ -9,6 +9,7 @@ import { AdminPage } from './pages/Admin';
 import { BoardPage } from './pages/Board';
 import { LoginPage } from './pages/Login';
 import { PickPartyPage } from './pages/PickParty';
+import { PrizeGamePage } from './pages/PrizeGame';
 import { PicksPage } from './pages/Picks';
 import { RulesPage } from './pages/Rules';
 import { StandingsPage } from './pages/Standings';
@@ -30,6 +31,7 @@ export default function App() {
           <NavLink to="/standings"><span className="ico">🏆</span> <span className="lbl">Standings</span></NavLink>
           <NavLink to="/rules"><span className="ico">📜</span> <span className="lbl">Rules</span></NavLink>
           <NavLink to="/party"><span className="ico">🎉</span> <span className="lbl">Party</span></NavLink>
+          {me?.is_admin && <NavLink to="/prize"><span className="ico">💼</span> <span className="lbl">Prize</span></NavLink>}
           {me?.is_admin && <NavLink to="/admin"><span className="ico">🛠️</span> <span className="lbl">Admin</span></NavLink>}
         </nav>
         {me ? <MeChip /> : !session ? <Link className="btn primary" to="/login">Log in</Link> : <Link className="btn yellow" to="/login">Claim player</Link>}
@@ -51,6 +53,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/party" element={<PickPartyPage />} />
+          <Route path="/prize" element={<PrizeGamePage />} />
           <Route path="*" element={<div className="card empty"><div className="big">🤷</div><p>Fumble. That page doesn't exist.</p></div>} />
         </Routes>
       )}

@@ -513,3 +513,62 @@ table.grid { border-collapse: collapse; width: 100%; font-size: 13px; }
 .box-card.used { background: #f4f1fa; box-shadow: none; }
 .box-title { font-family: var(--display); font-size: 15px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .box-log { margin-top: 10px; display: grid; gap: 4px; font-size: 13px; font-weight: 700; border-top: 2px dashed var(--ink); padding-top: 8px; }
+
+/* ------------------------------------------------------------------ prize game */
+
+.prize-game { display: grid; gap: 14px; max-width: 900px; margin: 0 auto; }
+.prize-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.prize-head .btn { margin-left: auto; }
+.prize-stage { padding: 22px 18px; }
+.prize-stage h2 { font-family: var(--display); }
+.cases { display: flex; justify-content: center; gap: clamp(10px, 4vw, 34px); margin: 18px 0 20px; flex-wrap: wrap; }
+.briefcase {
+  position: relative; width: clamp(96px, 26vw, 170px); aspect-ratio: 1.35; padding: 0; border: none; background: none;
+  display: grid; grid-template-rows: 18% 1fr; transition: transform 0.15s;
+}
+.briefcase:not(:disabled):hover { transform: translateY(-6px) rotate(-3deg); }
+.briefcase:disabled { cursor: default; }
+.bc-handle {
+  justify-self: center; width: 36%; height: 100%; border: 6px solid var(--ink); border-bottom: none;
+  border-radius: 14px 14px 0 0; background: transparent;
+}
+.bc-body {
+  display: grid; place-content: center; border: var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  background: linear-gradient(180deg, #c8c8cf 0 46%, #a9a9b3 46% 54%, #c8c8cf 54%);
+  position: relative;
+}
+.bc-body::before, .bc-body::after { content: ''; position: absolute; top: 42%; width: 12%; height: 16%; background: var(--yellow); border: 2px solid var(--ink); border-radius: 4px; }
+.bc-body::before { left: 14%; }
+.bc-body::after { right: 14%; }
+.bc-num { font-family: var(--display); font-size: clamp(30px, 7vw, 54px); color: var(--ink); text-shadow: 2px 2px 0 white; z-index: 1; }
+.briefcase.opening { animation: bc-shake 0.12s infinite; }
+@keyframes bc-shake { 0% { transform: rotate(-5deg) scale(1.04); } 50% { transform: rotate(5deg) scale(1.08); } 100% { transform: rotate(-5deg) scale(1.04); } }
+.briefcase.open .bc-body { background: var(--paper); animation: pop 0.35s ease-out; }
+.briefcase.open .bc-body::before, .briefcase.open .bc-body::after { display: none; }
+.bc-prize { display: grid; justify-items: center; gap: 2px; padding: 4px; }
+.bc-emoji { font-size: clamp(30px, 7vw, 50px); line-height: 1; }
+.bc-label { font-weight: 700; font-size: clamp(10px, 2.4vw, 13px); line-height: 1.1; text-align: center; }
+.big-prize { font-size: 90px; line-height: 1.1; animation: pop 0.4s ease-out; }
+
+.quiz-card { max-width: 720px; margin: 0 auto; width: 100%; animation: pop 0.25s ease-out; }
+.quiz-q { font-family: var(--body) !important; font-weight: 700; font-size: clamp(18px, 3.4vw, 24px); line-height: 1.3; margin: 8px 0 16px; }
+.quiz-choices { display: grid; gap: 10px; }
+.quiz-choice {
+  display: flex; align-items: center; gap: 12px; text-align: left; font-size: 16px; font-weight: 500;
+  padding: 12px 14px; border: var(--line); border-radius: 12px; background: white; box-shadow: var(--shadow-sm);
+  transition: transform 0.08s, background 0.2s;
+}
+.quiz-choice:not(:disabled):hover { transform: translate(-1px, -1px); background: #f6f1ff; }
+.qc-key { font-family: var(--display); width: 30px; height: 30px; display: grid; place-content: center; border-radius: 8px; background: var(--ink); color: var(--yellow); flex: none; }
+.qc-mark { margin-left: auto; font-size: 20px; }
+.quiz-choice.correct { background: var(--win-bg); border-color: var(--win); }
+.quiz-choice.correct .qc-key { background: var(--win); color: white; }
+.quiz-choice.wrong { background: var(--loss-bg); border-color: var(--loss); animation: wiggle 0.3s; }
+.quiz-choice.wrong .qc-key { background: var(--loss); color: white; }
+.quiz-choice.dim { opacity: 0.5; }
+.quiz-feedback { margin-top: 14px; padding: 12px 14px; border-radius: 12px; border: 2px solid var(--ink); font-size: 14px; animation: pop 0.25s ease-out; }
+.quiz-feedback.good { background: var(--win-bg); }
+.quiz-feedback.bad { background: var(--loss-bg); }
+.dot-step { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ink); background: white; }
+.dot-step.done { background: var(--ink); }
+.dot-step.now { box-shadow: 0 0 0 3px var(--yellow); }
