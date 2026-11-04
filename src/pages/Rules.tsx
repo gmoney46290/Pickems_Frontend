@@ -20,7 +20,7 @@ export function RulesPage() {
             <b>{it.emoji} {it.name}</b> · {it.blurb}
             {it.key === 'landmine' && ' Stacks with a double down (a losing DD becomes −2).'}
             {it.key === 'taser' && ' Stacks: two tasers = 4 points harder.'}
-            {it.key === 'lone_wolf' && ' Nobody can switch sides on that game afterward.'}
+            {it.key === 'lone_wolf' && ' Nobody can switch sides on that game afterward. Rare: about 1 in 12 boxes.'}
             {it.key === 'super_dawg' && " Underdog = the team getting points on our line. Doesn't matter who you picked."}
           </li>
         ))}
