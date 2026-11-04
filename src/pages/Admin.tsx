@@ -514,8 +514,19 @@ function PhasesPanel() {
 // ---------------------------------------------------------------- players
 
 function PlayersPanel() {
-  const { players, reload, me, weeks } = useLeague();
+  const { players, reload, me, weeks, allDD } = useLeague();
   const toast = useToast();
+  // Perks apply to the latest week that isn't final (usually the one being picked now).
+  const perkWeek = [...weeks].filter(w => w.status !== 'final').sort((a, b) => b.season - a.season || b.number - a.number)[0];
+  const setAllDD = async (p: { id: string; name: string }, on: boolean) => {
+    if (!perkWeek) return;
+    const { error } = on
+      ? await supabase.from('week_perks').upsert({ week_id: perkWeek.id, player_id: p.id, all_double_down: true, note: 'Every pick is a double down' })
+      : await supabase.from('week_perks').delete().match({ week_id: perkWeek.id, player_id: p.id });
+    if (error) return toast(error.message, true);
+    toast(on ? `🔥 Every ${p.name} pick in ${weekTitle(perkWeek)} is a double down` : `${p.name} back to normal double downs`);
+    reload();
+  };
   // Gift boxes go to the latest open mystery-box week.
   const boxWeek = [...weeks].filter(w => w.ruleset === 'boxes' && w.status === 'open').sort((a, b) => b.number - a.number)[0];
   const gift = async (p: { id: string; name: string }) => {
@@ -543,7 +554,7 @@ function PlayersPanel() {
       <h3 className="display" style={{ marginTop: 0 }}>👥 Players</h3>
       <div className="tbl-wrap"><table className="tbl">
         <thead>
-          <tr><th>Emoji</th><th>Name</th><th>Color</th><th>Account</th><th>Admin</th>{boxWeek && <th>Box</th>}</tr>
+          <tr><th>Emoji</th><th>Name</th><th>Color</th><th>Account</th><th>Admin</th>{boxWeek && <th>Box</th>}{perkWeek && <th title={`Every pick in ${weekTitle(perkWeek)} counts as a double down`}>🔥 All-DD {weekTitle(perkWeek).replace('Week ', 'wk ')}</th>}</tr>
         </thead>
         <tbody>
           {players.map(p => (
@@ -564,6 +575,11 @@ function PlayersPanel() {
               {boxWeek && (
                 <td>
                   <button className="btn small" onClick={() => gift(p)} title={`Extra box for ${weekTitle(boxWeek)}`}>🎁 Give box</button>
+                </td>
+              )}
+              {perkWeek && (
+                <td className="center">
+                  <input type="checkbox" checked={allDD(perkWeek.id, p.id)} onChange={e => setAllDD(p, e.target.checked)} />
                 </td>
               )}
             </tr>

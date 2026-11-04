@@ -42,7 +42,7 @@ function kickoffLabel(iso: string) {
 
 export function GameCard({ game, away, home, me, myPick, picks, players, limits, onSave, onMoveDD, weekLocksAt }: Props) {
   const toast = useToast();
-  const { score, boxIndex, weeks } = useLeague();
+  const { score, boxIndex, weeks, allDD } = useLeague();
   const rules = rulesFor(weeks.find(w => w.id === game.week_id));
   const [showLines, setShowLines] = useState(false);
   const [editingScore, setEditingScore] = useState(false);
@@ -65,6 +65,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
   const pts = score(game, myPick, true);
   // Mystery-box effects on the shown player's pick, plus any Lone Wolf on this game
   const ownerId = myPick?.player_id ?? me?.id;
+  const everyDD = !!ownerId && allDD(game.week_id, ownerId);
   const mods = ownerId ? boxIndex.mods(game.id, ownerId) : null;
   const wolf = boxIndex.wolfOn(game.id);
   const nameOf = (id: string | null) => players.find(p => p.id === id)?.name ?? '?';
@@ -176,7 +177,7 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
   const seed = game.id + (myPick?.player_id?.charCodeAt(0) ?? 0);
 
   return (
-    <div ref={cardRef} className={`game ${myPick?.is_dd ? 'dd' : ''}`}>
+    <div ref={cardRef} className={`game ${myPick?.is_dd || (picked && everyDD) ? 'dd' : ''}`}>
       <div className="game-top">
         <span className="row" style={{ gap: 6 }}>
           {status}
@@ -250,7 +251,11 @@ export function GameCard({ game, away, home, me, myPick, picks, players, limits,
       ) : null}
 
       <div className="game-actions">
-        {(canEdit || myPick?.is_dd) && (
+        {everyDD ? (
+          <span className="chip" style={{ background: 'var(--orange)', color: 'white' }} title="Every pick this week counts as a double down">
+            🔥 All-DD week
+          </span>
+        ) : (canEdit || myPick?.is_dd) && (
           <button className={`btn small ${myPick?.is_dd ? 'on' : ''}`} disabled={!canEdit} onClick={toggleDD} title="+2 if right, -1 if wrong">
             🔥 {myPick?.is_dd ? 'Doubled!' : 'Double down'}
           </button>

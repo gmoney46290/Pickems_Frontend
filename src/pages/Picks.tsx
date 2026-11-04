@@ -15,7 +15,7 @@ const LEAGUE_META: Record<League, { title: string; emoji: string }> = {
 };
 
 export function PicksPage() {
-  const { weeks, games, picks, players, teams, me, savePick, session, score, boxIndex } = useLeague();
+  const { weeks, games, picks, players, teams, me, savePick, session, score, boxIndex, allDD } = useLeague();
   const [params, setParams] = useSearchParams();
   const visibleWeeks = weeks.filter(w => w.status !== 'draft' || me?.is_admin);
   const [weekId, setWeekId] = useState<number | null>(() => Number(params.get('week')) || null);
@@ -133,11 +133,15 @@ export function PicksPage() {
               <span className={`check ${pickedCount === weekGames.length ? 'done' : 'todo'}`}>
                 {pickedCount === weekGames.length ? '✅' : '📝'} {pickedCount}/{weekGames.length} picked
               </span>
-              {(['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
-                <span key={lg} className={`check ${ddFor(lg) ? 'done' : 'todo'}`}>
-                  🔥 {LEAGUE_META[lg].title} DD {ddFor(lg) ? '✓' : '—'}
-                </span>
-              ))}
+              {actor && allDD(week.id, actor.id) ? (
+                <span className="check done" style={{ background: 'var(--orange)', color: 'white' }}>🔥 Every pick is a double down this week</span>
+              ) : (
+                (['cfb', 'nfl'] as League[]).filter(hasLeague).map(lg => (
+                  <span key={lg} className={`check ${ddFor(lg) ? 'done' : 'todo'}`}>
+                    🔥 {LEAGUE_META[lg].title} DD {ddFor(lg) ? '✓' : '—'}
+                  </span>
+                ))
+              )}
               <span className={`check ${scoreCalls >= week.score_picks ? 'done' : 'todo'}`}>
                 🎯 {scoreCalls}/{week.score_picks} score calls
               </span>

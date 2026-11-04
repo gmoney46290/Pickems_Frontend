@@ -16,7 +16,7 @@ import type { Game, Pick, Player, Team } from '../lib/types';
  * Any logged-in player can watch and edit their own row. Grid view for the whole week, or one game at a time for going around the room.
  */
 export function PickPartyPage() {
-  const { me, ready, weeks, games, picks, players, teams, savePick } = useLeague();
+  const { me, ready, weeks, games, picks, players, teams, savePick, allDD } = useLeague();
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [weekId, setWeekId] = useState<number | null>(() => Number(params.get('week')) || null);
@@ -174,7 +174,11 @@ export function PickPartyPage() {
     const editingThis = scoreEdit?.gid === g.id && scoreEdit.pid === p.id;
     return (
       <>
-        <button className={`party-icon ${pk?.is_dd ? 'on' : ''}`} onClick={e => toggleDD(g, p, e.currentTarget)} title="double down">🔥</button>
+        {allDD(g.week_id, p.id) ? (
+          <span className="party-icon on" title="All-DD week: every pick is a double down">🔥</span>
+        ) : (
+          <button className={`party-icon ${pk?.is_dd ? 'on' : ''}`} onClick={e => toggleDD(g, p, e.currentTarget)} title="double down">🔥</button>
+        )}
         {editingThis ? (
           scoreEditor(g, away, home, big)
         ) : (

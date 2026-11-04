@@ -97,3 +97,10 @@ export interface Box {
   target_team_id: string | null;
   dice_roll: number | null;
 }
+
+export interface WeekPerk {
+  week_id: number;
+  player_id: string;
+  all_double_down: boolean;
+  note: string | null;
+}

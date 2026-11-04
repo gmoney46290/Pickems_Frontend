@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { fetchAll, supabase, supabaseConfigured } from './supabase';
 import { indexBoxes, rulesFor, type BoxIndex } from './boxes';
 import { pickPoints, type PickPoints } from './scoring';
-import type { Box, Game, Phase, Pick, Player, Team, Week } from './types';
+import type { Box, Game, Phase, Pick, Player, Team, Week, WeekPerk } from './types';
 
 interface LeagueState {
   ready: boolean;
@@ -19,6 +19,9 @@ interface LeagueState {
   picks: Pick[];
   boxes: Box[];
   boxIndex: BoxIndex;
+  perks: WeekPerk[];
+  /** every pick that player makes that week counts as a double down */
+  allDD: (weekId: number, playerId: string) => boolean;
   /** Grade a pick with its week's rules and any mystery-box effects. */
   score: (g: Game, p: Pick | undefined, live?: boolean) => PickPoints;
   reload: () => Promise<void>;
@@ -48,6 +51,7 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const [games, setGames] = useState<Game[]>([]);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [boxes, setBoxes] = useState<Box[]>([]);
+  const [perks, setPerks] = useState<WeekPerk[]>([]);
   const picksRef = useRef(picks);
   picksRef.current = picks;
 
@@ -78,6 +82,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
         fetchAll<Pick>('picks'),
       ]);
       await loadBoxes();
+      // week_perks only exists once its migration has run
+      setPerks(await supabase.from('week_perks').select('*').then(r => (r.error ? [] : (r.data as WeekPerk[]))));
       setPlayers(p);
       setTeamList(t);
       setWeeks(w.sort((a, b) => a.season - b.season || a.number - b.number));
@@ -136,10 +142,17 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
   const teams = useMemo(() => new Map(teamList.map(t => [t.id, t])), [teamList]);
   const boxIndex = useMemo(() => indexBoxes(boxes, games), [boxes, games]);
   const weekById = useMemo(() => new Map(weeks.map(w => [w.id, w])), [weeks]);
+  const allDD = useCallback(
+    (weekId: number, playerId: string) => perks.some(k => k.week_id === weekId && k.player_id === playerId && k.all_double_down),
+    [perks],
+  );
   const score = useCallback(
-    (g: Game, p: Pick | undefined, live = false) =>
-      pickPoints(g, p, live, { rules: rulesFor(weekById.get(g.week_id)), mods: p ? boxIndex.mods(g.id, p.player_id) : undefined }),
-    [boxIndex, weekById],
+    (g: Game, p: Pick | undefined, live = false) => {
+      const m = p ? boxIndex.mods(g.id, p.player_id) : undefined;
+      const mods = m && p && allDD(g.week_id, p.player_id) ? { ...m, extraDD: true } : m;
+      return pickPoints(g, p, live, { rules: rulesFor(weekById.get(g.week_id)), mods });
+    },
+    [boxIndex, weekById, allDD],
   );
 
   const savePick = useCallback(
@@ -193,6 +206,8 @@ export function LeagueProvider({ children }: { children: ReactNode }) {
     picks,
     boxes,
     boxIndex,
+    perks,
+    allDD,
     score,
     reload,
     reloadBoxes: loadBoxes,

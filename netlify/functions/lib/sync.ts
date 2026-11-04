@@ -107,7 +107,16 @@ export async function syncScores({ full = false } = {}) {
     .lte('kickoff', hi)
     .neq('weeks.status', 'draft');
   if (error) throw error;
-  const rows = (data ?? []) as unknown as Row[];
+  // ESPN sometimes flags a game final before the last score posts (GB-DET wk 6 stuck at 17-17),
+  // so keep re-checking finals for a day and a half after kickoff.
+  const recent = await sb
+    .from('games')
+    .select('*,weeks!inner(season,nfl_week,cfb_week,status)')
+    .eq('status', 'final')
+    .gte('kickoff', new Date(now - 36 * 36e5).toISOString())
+    .neq('weeks.status', 'draft');
+  if (recent.error) throw recent.error;
+  const rows = [...(data ?? []), ...(recent.data ?? [])] as unknown as Row[];
   if (!rows.length) return { checked: 0, updated: 0 };
 
   // One scoreboard call per (league, week); college pulls FBS and FCS.

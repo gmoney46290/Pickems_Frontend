@@ -77,7 +77,6 @@ export function BoardPage() {
           const hit = g.status === 'final' && r.bullseye;
           const m = boxIndex.mods(g.id, pl.id);
           const fx = [
-            m.extraDD && '🔥',
             ...m.teasers.map(() => '🎟️'),
             ...m.tasers.map(() => '⚡'),
             ...m.mines.map(() => '🧨'),
@@ -89,7 +88,7 @@ export function BoardPage() {
               <span className={`cell ${cls} ${r.dd ? 'dd' : ''} ${hit ? 'hit' : ''}`} title={m.lineAdj ? `Line moved ${m.lineAdj > 0 ? '+' : ''}${m.lineAdj} by boxes` : undefined}>
                 {t?.logo && <img src={t.logo} alt="" />}
                 {t?.abbr}
-                {p.is_dd && '🔥'}
+                {r.dd && '🔥'}
                 {fx}
                 {p.score_away != null && <span className="sc">{p.score_away}-{p.score_home}</span>}
               </span>
