@@ -186,9 +186,17 @@ export async function buildSlate(wk?: Awaited<ReturnType<typeof upcomingWeek>>) 
     .sort((a, b) => a.kickoff.localeCompare(b.kickoff));
   if (games.length < 3) return { wk, props: [] as PropRow[], reason: `only ${games.length} games left to build from` };
 
-  // Featured game for first-TD: the 49ers if they play, else a night game, else random.
-  const featured = games.find(g => g.away.abbr === 'SF' || g.home.abbr === 'SF') ?? rand(games.filter(g => g.night).length ? games.filter(g => g.night) : games);
-  const others = shuffle(games.filter(g => g.id !== featured.id));
+  // How many of each bet a week gets (20 total).
+  const COUNT = { firstTd: 2, yards: 5, anytime: 3, gameFun: 5, slateFun: 4 } as const;
+
+  // First-TD games: the 49ers if they play, then night games, then anything.
+  const byPriority = [
+    ...games.filter(g => g.away.abbr === 'SF' || g.home.abbr === 'SF'),
+    ...shuffle(games.filter(g => g.night)),
+    ...shuffle(games),
+  ];
+  const featured = [...new Map(byPriority.map(g => [g.id, g])).values()].slice(0, COUNT.firstTd);
+  const others = shuffle(games.filter(g => !featured.some(f => f.id === g.id)));
   const leaderCache = new Map<string, Promise<Leaders>>();
   const leadersOf = (t: Team) => {
     if (!leaderCache.has(t.id)) leaderCache.set(t.id, teamLeaders(t, wk.season, wk.seasonType));
@@ -226,54 +234,58 @@ export async function buildSlate(wk?: Awaited<ReturnType<typeof upcomingWeek>>) 
     }
   };
 
-  // 🏈 First TD scorer
-  let firstDone = false;
-  {
-    const m = await markets(featured, ['player_1st_td']);
+  // 🏈 First TD scorer (one per featured game)
+  for (const fg of featured) {
+    let done = false;
+    const m = await markets(fg, ['player_1st_td']);
     const outs = (m?.get('player_1st_td') ?? []).filter(o => o.name !== 'No' && !/no\s*(td|touchdown)/i.test(who(o))).sort((a, b) => a.price - b.price);
     const opts: (Option & { name: string })[] = [];
     for (const o of outs.slice(0, 6)) {
       const n = who(o);
-      const a = await lookup(featured, n);
+      const a = await lookup(fg, n);
       opts.push({ key: optKey(a, n), label: a?.name ?? n, name: n, sub: `${a ? `${a.teamAbbr} ${a.pos} · ` : ''}${fmtOdds(o.price)}`, img: a?.headshot ?? null });
     }
     if (opts.length >= 3) {
       opts.forEach(o => used.add(o.key));
-      props.push({ kind: 'first_td', emoji: '🏈', title: `First TD scorer in ${gameLabel(featured)}`, detail: 'Real sportsbook odds. Whoever crosses the goal line first (a QB throwing it doesn\'t count).', event_ids: [featured.id], locks_at: featured.kickoff, params: { source: 'odds', names: Object.fromEntries(opts.map(o => [o.key, o.name])) }, options: [...opts.map(({ name, ...o }) => o), { key: 'other', label: 'Someone else (or no TD)', sub: 'the field' }] });
-      firstDone = true;
+      props.push({ kind: 'first_td', emoji: '🏈', title: `First TD scorer in ${gameLabel(fg)}`, detail: 'Real sportsbook odds. Whoever crosses the goal line first (a QB throwing it doesn\'t count).', event_ids: [fg.id], locks_at: fg.kickoff, params: { source: 'odds', names: Object.fromEntries(opts.map(o => [o.key, o.name])) }, options: [...opts.map(({ name, ...o }) => o), { key: 'other', label: 'Someone else (or no TD)', sub: 'the field' }] });
+      done = true;
     }
-  }
-  if (!firstDone) {
-    const [la, lh] = await Promise.all([leadersOf(featured.away), leadersOf(featured.home)]);
-    const cands = [la.rb, la.wr1, la.wr2, lh.rb, lh.wr1, lh.wr2].filter((a): a is Athlete => !!a?.starter);
-    const seen = new Set<string>();
-    const opts: Option[] = cands.filter(a => !seen.has(a.id) && seen.add(a.id)).map(a => ({ key: a.id, label: a.name, sub: `${a.teamAbbr} ${a.pos}`, img: a.headshot }));
-    if (opts.length >= 3) {
-      opts.push({ key: 'other', label: 'Someone else (or no TD)', sub: 'the field' });
-      props.push({ kind: 'first_td', emoji: '🏈', title: `First TD scorer in ${gameLabel(featured)}`, detail: 'Whoever crosses the goal line first (a QB throwing it doesn\'t count).', event_ids: [featured.id], locks_at: featured.kickoff, params: { names: Object.fromEntries(cands.map(a => [a.id, a.name])) }, options: opts });
-      cands.forEach(a => used.add(a.id));
+    if (!done) {
+      const [la, lh] = await Promise.all([leadersOf(fg.away), leadersOf(fg.home)]);
+      const cands = [la.rb, la.wr1, la.wr2, lh.rb, lh.wr1, lh.wr2].filter((a): a is Athlete => !!a?.starter);
+      const seen = new Set<string>();
+      const fopts: Option[] = cands.filter(a => !seen.has(a.id) && seen.add(a.id)).map(a => ({ key: a.id, label: a.name, sub: `${a.teamAbbr} ${a.pos}`, img: a.headshot }));
+      if (fopts.length >= 3) {
+        fopts.push({ key: 'other', label: 'Someone else (or no TD)', sub: 'the field' });
+        props.push({ kind: 'first_td', emoji: '🏈', title: `First TD scorer in ${gameLabel(fg)}`, detail: 'Whoever crosses the goal line first (a QB throwing it doesn\'t count).', event_ids: [fg.id], locks_at: fg.kickoff, params: { names: Object.fromEntries(cands.map(a => [a.id, a.name])) }, options: fopts });
+        cands.forEach(a => used.add(a.id));
+      }
     }
   }
 
-  // 📈 Two player yardage over/unders + 🔥 one anytime TD
+  // 📈 Yardage over/unders + 🔥 anytime TDs, at most one of each per game for variety
   const statKinds = shuffle(['passing', 'rushing', 'receiving'] as const);
   const STAT_MARKET = { passing: 'player_pass_yds', rushing: 'player_rush_yds', receiving: 'player_reception_yds' } as const;
+  // Skip backups with tiny lines (a 15.5-yard rushing line is no fun).
+  const MIN_LINE = { passing: 150, rushing: 35, receiving: 30 } as const;
   let made = 0;
-  let anytimeDone = false;
+  let anytimes = 0;
   if (oddsId) {
     for (const g of others) {
-      if (made >= 2 && anytimeDone) break;
+      if (made >= COUNT.yards && anytimes >= COUNT.anytime) break;
       const m = await markets(g, ['player_pass_yds', 'player_rush_yds', 'player_reception_yds', 'player_anytime_td']);
       if (!m) continue;
-      if (made < 2) {
-        // try this game's stat type, then the others, so one game can't stall us
-        for (const stat of [statKinds[made], ...statKinds.filter(k => k !== statKinds[made])]) {
+      if (made < COUNT.yards) {
+        const first = statKinds[made % 3];
+        for (const stat of [first, ...statKinds.filter(k => k !== first)]) {
           const outs = m.get(STAT_MARKET[stat]) ?? [];
-          const players = [...new Set(outs.map(who))].filter(n => !used.has(`n:${normName(n)}`));
-          const n = rand(players.slice(0, 4)); // books list the main guys first
-          const over = outs.find(o => who(o) === n && o.name === 'Over' && o.point != null);
+          const overs = outs
+            .filter(o => o.name === 'Over' && o.point != null && o.point >= MIN_LINE[stat] && !used.has(`n:${normName(who(o))}`))
+            .sort((a, b) => b.point! - a.point!); // biggest lines = the main guys
+          const over = rand(overs.slice(0, 2));
+          if (!over) continue;
+          const n = who(over);
           const under = outs.find(o => who(o) === n && o.name === 'Under');
-          if (!n || !over) continue;
           const a = await lookup(g, n);
           if (a && used.has(a.id)) continue;
           used.add(optKey(a, n));
@@ -283,9 +295,9 @@ export async function buildSlate(wk?: Awaited<ReturnType<typeof upcomingWeek>>) 
           break;
         }
       }
-      if (!anytimeDone) {
-        const yes = (m.get('player_anytime_td') ?? []).filter(o => o.name !== 'No');
-        const fun = yes.filter(o => o.price >= 110 && o.price <= 400 && !used.has(`n:${normName(who(o))}`)); // live underdogs are more fun
+      if (anytimes < COUNT.anytime) {
+        const yes = (m.get('player_anytime_td') ?? []).filter(o => o.name !== 'No' && !used.has(`n:${normName(who(o))}`));
+        const fun = yes.filter(o => o.price >= 110 && o.price <= 400); // live underdogs are more fun
         const o = rand(fun.length ? fun : yes);
         if (o) {
           const n = who(o);
@@ -293,15 +305,16 @@ export async function buildSlate(wk?: Awaited<ReturnType<typeof upcomingWeek>>) 
           if (!a || !used.has(a.id)) {
             used.add(optKey(a, n));
             props.push({ kind: 'anytime_td', emoji: '🔥', title: `Will ${a?.name ?? n} score a TD?`, detail: `${gameLabel(g)}${a ? ` · ${a.teamAbbr} ${a.pos}` : ''}. Rushing, receiving or returns all count.`, event_ids: [g.id], locks_at: g.kickoff, params: { source: 'odds', athlete: a?.id ?? null, name: n }, options: [{ key: 'yes', label: 'Yes', sub: fmtOdds(o.price), img: a?.headshot ?? null }, { key: 'no', label: 'No', img: a?.headshot ?? null }] });
-            anytimeDone = true;
+            anytimes++;
           }
         }
       }
     }
   }
+  // ESPN season-average fallback for whatever the odds didn't cover
   for (const g of others) {
-    if (made >= 2) break;
-    const stat = statKinds[made];
+    if (made >= COUNT.yards) break;
+    const stat = statKinds[made % 3];
     const side = rand([g.away, g.home]);
     const l = await leadersOf(side);
     const a = stat === 'passing' ? l.qb : stat === 'rushing' ? l.rb : l.wr1;
@@ -311,24 +324,23 @@ export async function buildSlate(wk?: Awaited<ReturnType<typeof upcomingWeek>>) 
     made++;
     props.push({ kind: 'yards_ou', emoji: '📈', title: `${a.name} ${stat} yards`, detail: `${gameLabel(g)} · season avg ${(a.seasonValue / side.games).toFixed(1)}/game`, event_ids: [g.id], locks_at: g.kickoff, params: { athlete: a.id, name: a.name, stat, line }, options: ou(line).map(o => ({ ...o, img: a.headshot })) });
   }
-  if (!anytimeDone) {
-    for (const g of others.slice(2, 5)) {
-      const l = await leadersOf(rand([g.away, g.home]));
-      const a = rand([l.rb, l.wr1].filter((x): x is Athlete => !!x?.starter && !used.has(x.id)));
-      if (!a) continue;
-      used.add(a.id);
-      props.push({ kind: 'anytime_td', emoji: '🔥', title: `Will ${a.name} score a TD?`, detail: `${gameLabel(g)} · ${a.teamAbbr} ${a.pos}. Rushing, receiving or returns all count.`, event_ids: [g.id], locks_at: g.kickoff, params: { athlete: a.id, name: a.name }, options: yesNo.map(o => ({ ...o, img: a.headshot })) });
-      break;
-    }
+  for (const g of shuffle(others)) {
+    if (anytimes >= COUNT.anytime) break;
+    const l = await leadersOf(rand([g.away, g.home]));
+    const a = rand([l.rb, l.wr1].filter((x): x is Athlete => !!x?.starter && !used.has(x.id)));
+    if (!a) continue;
+    used.add(a.id);
+    anytimes++;
+    props.push({ kind: 'anytime_td', emoji: '🔥', title: `Will ${a.name} score a TD?`, detail: `${gameLabel(g)} · ${a.teamAbbr} ${a.pos}. Rushing, receiving or returns all count.`, event_ids: [g.id], locks_at: g.kickoff, params: { athlete: a.id, name: a.name }, options: yesNo.map(o => ({ ...o, img: a.headshot })) });
   }
 
-  // 🎲 Three game oddities on different games
+  // 🎲 Game oddities, each on a different game
   const funGames = shuffle(games);
-  shuffle([...GAME_FUN]).slice(0, 3).forEach((k, i) => props.push(gameFunProp(k, funGames[i % funGames.length])));
+  shuffle([...GAME_FUN]).slice(0, COUNT.gameFun).forEach((k, i) => props.push(gameFunProp(k, funGames[i % funGames.length])));
 
-  // ⏰ Two slate-wide yes/nos
+  // ⏰ Slate-wide yes/nos
   const firstKick = games[0].kickoff;
-  shuffle([...SLATE_FUN]).slice(0, 2).forEach(k => props.push(slateFunProp(k, games, firstKick)));
+  shuffle([...SLATE_FUN]).slice(0, COUNT.slateFun).forEach(k => props.push(slateFunProp(k, games, firstKick)));
 
   // 🎆 Highest-scoring game among four
   const four = shuffle(games).slice(0, 4).sort((a, b) => a.kickoff.localeCompare(b.kickoff));
@@ -343,6 +355,12 @@ export async function generateParlayWeek({ force = false } = {}) {
   const wk = await upcomingWeek();
   const { data: existing } = await sb.from('parlay_weeks').select('id').match({ season: wk.season, season_type: wk.seasonType, week: wk.week }).maybeSingle();
   if (existing && !force) return { created: false, week: wk.week, reason: 'already built' };
+  if (existing) {
+    // Rebuilding deletes the old props (and their picks), so only allow it before anyone has picked.
+    const { data: ids } = await sb.from('parlay_props').select('id').eq('week_id', existing.id);
+    const { count } = await sb.from('parlay_entries').select('prop_id', { count: 'exact', head: true }).in('prop_id', (ids ?? []).map(r => r.id));
+    if (count) return { created: false, week: wk.week, reason: `can't rebuild: ${count} picks already made` };
+  }
   const { props, reason } = await buildSlate(wk);
   if (reason) return { created: false, week: wk.week, reason };
 

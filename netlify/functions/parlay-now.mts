@@ -3,7 +3,8 @@ import { admin } from './lib/sync';
 
 // On demand: build this week's slate if it's missing, then grade. Building can spend Odds API
 // credits, so callers must be a logged-in admin (Bearer token) or present the Odds API key.
-//   ?dry=1  build a slate and return it without saving (for checking lines)
+//   ?dry=1      build a slate and return it without saving (for checking lines)
+//   ?rebuild=1  replace this week's slate (refused once anyone has picked)
 async function allowed(req: Request) {
   const key = process.env.ODDS_API_KEY;
   if (key && req.headers.get('x-parlay-key') === key) return true;
@@ -23,7 +24,7 @@ export default async (req: Request) => {
       const { wk, props, reason } = await buildSlate();
       return Response.json({ week: wk.week, reason, odds: oddsLog, props });
     }
-    const built = await generateParlayWeek();
+    const built = await generateParlayWeek({ force: !!new URL(req.url).searchParams.get('rebuild') });
     const graded = await gradeParlay();
     return Response.json({ built, graded, odds: oddsLog });
   } catch (e: any) {
