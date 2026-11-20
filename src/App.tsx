@@ -8,6 +8,7 @@ import { supabase } from './lib/supabase';
 import { AdminPage } from './pages/Admin';
 import { BoardPage } from './pages/Board';
 import { LoginPage } from './pages/Login';
+import { ParlayPage } from './pages/Parlay';
 import { PickPartyPage } from './pages/PickParty';
 import { PrizeGamePage } from './pages/PrizeGame';
 import { PicksPage } from './pages/Picks';
@@ -30,6 +31,7 @@ export default function App() {
           <NavLink to="/board"><span className="ico">📋</span> <span className="lbl">Board</span></NavLink>
           <NavLink to="/standings"><span className="ico">🏆</span> <span className="lbl">Standings</span></NavLink>
           <NavLink to="/rules"><span className="ico">📜</span> <span className="lbl">Rules</span></NavLink>
+          <NavLink to="/parlay"><span className="ico">🎰</span> <span className="lbl">Parlay</span></NavLink>
           <NavLink to="/party"><span className="ico">🎉</span> <span className="lbl">Party</span></NavLink>
           {me?.is_admin && <NavLink to="/prize"><span className="ico">💼</span> <span className="lbl">Prize</span></NavLink>}
           {me?.is_admin && <NavLink to="/admin"><span className="ico">🛠️</span> <span className="lbl">Admin</span></NavLink>}
@@ -54,6 +56,7 @@ export default function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/party" element={<PickPartyPage />} />
           <Route path="/prize" element={<PrizeGamePage />} />
+          <Route path="/parlay" element={<ParlayPage />} />
           <Route path="*" element={<div className="card empty"><div className="big">🤷</div><p>Fumble. That page doesn't exist.</p></div>} />
         </Routes>
       )}
